@@ -5,11 +5,13 @@
   "description": "VCP (Verifiable Capability Protocol) TypeScript reference: SDK + enforcing Gateway.",
   "workspaces": [
     "packages/sdk",
-    "packages/gateway"
+    "packages/gateway",
+    "packages/server"
   ],
   "scripts": {
     "build": "tsc --build",
-    "test": "node --experimental-strip-types --test \"packages/sdk/test/*.test.ts\" \"packages/gateway/test/*.test.ts\""
+    "test": "node --experimental-strip-types --test \"packages/sdk/test/*.test.ts\" \"packages/gateway/test/*.test.ts\" \"packages/server/test/*.test.ts\"",
+    "demo": "node --experimental-strip-types packages/server/src/demo.ts"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

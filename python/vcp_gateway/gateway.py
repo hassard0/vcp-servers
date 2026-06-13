@@ -113,7 +113,9 @@ class Gateway:
         self.policy = policy or DefaultPolicy()
         self.signer = signer or default_signer()
         self.trusted_issuers = trusted_issuers
-        self.audit = audit_log or AuditLog()
+        # NB: an empty AuditLog is falsy (``__len__`` == 0), so ``or`` would
+        # silently discard a caller-supplied empty log. Test for None explicitly.
+        self.audit = audit_log if audit_log is not None else AuditLog()
 
     def invoke(
         self,

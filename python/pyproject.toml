@@ -30,7 +30,7 @@ Homepage = "https://github.com/hassard0/vcp-servers"
 Specification = "https://github.com/hassard0/vcp"
 
 [tool.setuptools]
-packages = ["vcp_sdk", "vcp_gateway"]
+packages = ["vcp_sdk", "vcp_gateway", "vcp_server"]
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]
