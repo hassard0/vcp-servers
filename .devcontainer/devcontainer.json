@@ -1,0 +1,22 @@
+{
+  "name": "vcp-servers (TS + Python + Go + Rust)",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" },
+    "ghcr.io/devcontainers/features/go:1": { "version": "1.22" },
+    "ghcr.io/devcontainers/features/rust:1": {}
+  },
+  "postCreateCommand": "cd typescript && npm install && cd ../python && python -m pip install -e '.[crypto]' || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "ms-python.python",
+        "golang.go",
+        "rust-lang.rust-analyzer",
+        "editorconfig.editorconfig"
+      ]
+    }
+  }
+}

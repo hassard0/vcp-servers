@@ -1,5 +1,10 @@
 # vcp-servers
 
+[![spec revision](https://img.shields.io/badge/spec-2026--06--13-blue)](https://github.com/hassard0/vcp)
+[![license](https://img.shields.io/badge/license-Apache--2.0-green)](./LICENSE)
+[![languages](https://img.shields.io/badge/languages-TS%20%7C%20Py%20%7C%20Go%20%7C%20Rust-orange)](#conformance-matrix)
+[![conformance](https://img.shields.io/badge/conformance-10%20vectors-brightgreen)](./conformance)
+
 Reference implementations of the **[Verifiable Capability Protocol (VCP)](https://github.com/hassard0/vcp)**
 in TypeScript, Python, Go, and Rust. Each language ships two pieces:
 
@@ -15,6 +20,28 @@ All four are driven by the **same** language-agnostic conformance vectors in
 [`conformance/`](./conformance), so "VCP-compliant" is mechanically checkable across
 languages rather than asserted per-implementation. The spec revision they target is
 pinned in [`SPEC_PIN.json`](./SPEC_PIN.json).
+
+## Get started in 60 seconds
+
+```sh
+make              # list every target
+make example      # run the 30-line "hello VCP" in every language
+make test         # run every suite
+
+# or pick one language — each is just the native tool:
+cd typescript && npm install && npm run example
+cd python      && python examples/hello.py
+cd rust        && cargo run -p vcp-gateway --example hello
+cd go          && go run ./examples/hello
+```
+
+Each `examples/hello` builds and signs a capability, shows its content-addressed id,
+then runs it through the gateway (verify → policy → single-use grant → invoke →
+verify attestation) and prints the result — the whole VCP loop in ~30 lines. From
+there, each language's README has a **Quickstart** and a **Public API** overview, and
+the [`examples/`](./examples) + `npm run demo`/`demo:obo` show the full §16 and §26
+scenarios. One-click dev env: open in a [devcontainer](./.devcontainer) (all four
+toolchains provisioned).
 
 ## Conformance matrix
 

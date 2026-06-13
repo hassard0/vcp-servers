@@ -12,7 +12,7 @@
 //! - runs the [`taint`] engine (§12);
 //! - verifies provider [`attestation`]s (§9) and emits signed [`audit`] events
 //!   (§20);
-//! - drives invocations end to end ([`invoke`], §8).
+//! - drives invocations end to end ([`mod@invoke`], §8).
 
 pub mod attestation;
 pub mod audit;

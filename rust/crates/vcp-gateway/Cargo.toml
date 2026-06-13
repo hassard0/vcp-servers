@@ -3,6 +3,10 @@ name = "vcp-gateway"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository = "https://github.com/hassard0/vcp-servers"
+readme = "../../README.md"
+keywords = ["vcp", "mcp", "capability", "authorization", "security"]
+categories = ["authentication", "cryptography"]
 description = "VCP enforcing Gateway: manifest verification, policy decisions, proof-bound grants, taint engine, attestation, audit, and invocation."
 
 [dependencies]

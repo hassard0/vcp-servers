@@ -15,6 +15,98 @@ This is a monorepo of three npm-workspace packages:
 | [`@vcp/gateway`](packages/gateway) | Heavy enforcing Gateway. Manifest verification, policy authority, proof-bound grants, the taint engine, attestation verification, audit, and an end-to-end `invoke()`. |
 | [`@vcp/server`](packages/server) | A runnable **VCP-HTTP** gateway server (Node `http` only — no framework), a sample §16 Capability Provider, a tiny client, and a full end-to-end demo. |
 
+## Install
+
+```sh
+npm install @vcp/sdk @vcp/gateway
+```
+
+Both packages are Apache-2.0, ESM, and ship `dist/` (`.js` + `.d.ts`). Node 24+.
+
+## Quickstart
+
+A complete provider + gateway round-trip in ~40 lines: declare a capability as a
+signed, content-addressed contract, then run it through the enforcing Gateway
+(verify manifest → policy → mint a single-use grant → invoke a tiny in-process
+provider → verify the result attestation). The full, heavily-commented source is
+[`examples/hello.ts`](examples/hello.ts).
+
+```ts
+import { buildManifest, signManifest, Ed25519Signer, argumentHash, hash } from "@vcp/sdk";
+import { invoke, signAttestation, DefaultPolicy, type Provider } from "@vcp/gateway";
+
+const providerSigner = Ed25519Signer.generate(); // owns the capability + signs attestations
+const gatewaySigner = Ed25519Signer.generate();  // mints grants + signs the audit log
+
+// 1. Declare a read-only capability as a CONTRACT (schemas/effects/sandbox get hashed into the id).
+const manifest = await signManifest(buildManifest({
+  issuer: "did:web:example.com", provider: "example.fx",
+  name: "fx.convert", version: "1.0.0",
+  summary_for_user: "Convert minor units at a fixed demo rate.",
+  summary_for_model: "Pure read-only currency conversion. No side effects.",
+  input_schema: { type: "object", additionalProperties: false,
+    properties: { amount: { type: "number" }, from: { type: "string" }, to: { type: "string" } },
+    required: ["amount", "from", "to"] },
+  output_schema: { type: "object", properties: { converted: { type: "number" } }, required: ["converted"] },
+  effects: { class: "read-only", external_side_effect: false }, // read-only ⇒ no approval prompt
+  determinism: { class: "pure" },
+  sandbox: { filesystem: "none", network: [], secrets: [] },
+}), providerSigner);
+console.log(manifest.capability.id); // vcp:cap:fx.convert@sha256:…  (content-addressed)
+
+// 2. A 3-line provider: re-check arg hash, do the work, sign a result attestation.
+const provider: Provider = {
+  publicKey: () => providerSigner.publicKey(),
+  async invoke(a) {
+    if (argumentHash(a.arguments) !== a.argument_hash) throw new Error("ARGUMENT_HASH_MISMATCH");
+    const result = { converted: Math.round((a.arguments.amount as number) * 92 / 100) };
+    return { result, attestation: await signAttestation(
+      { capability_id: a.capability_id, argument_hash: a.argument_hash, result_hash: hash(result), effect_committed: false },
+      providerSigner) };
+  },
+};
+
+// 3. Run the enforcing loop. The result only returns because every check passed.
+const outcome = await invoke(
+  { subject: "user:alice", manifest, arguments: { amount: 100, from: "USD", to: "EUR" },
+    plan_hash: "sha256:" + "0".repeat(64), jkt: providerSigner.thumbprint() },
+  { manifestTrustedKey: providerSigner.publicKey(), trustedIssuers: ["did:web:example.com"],
+    policy: new DefaultPolicy(), gatewaySigner, provider });
+
+console.log(outcome.ok, outcome.result); // true { converted: 92 }
+```
+
+Run it from `typescript/`:
+
+```sh
+npm install
+npm run example
+```
+
+## Public API overview
+
+**`@vcp/sdk`** — build/sign artifacts (no enforcement):
+
+| Export | What it does |
+|---|---|
+| `buildManifest` / `signManifest` | Declare a capability as a contract; Ed25519-sign it. |
+| `Ed25519Signer` | Pluggable signer (`.generate()`, `.publicKey()`, `.thumbprint()`). |
+| `capabilityId` / `contractHash` / `argumentHash` | Content-addressed identity + argument binding (§4, §7, §8). |
+| `canonicalJson` / `hash` | JCS (RFC 8785) canonicalization + SHA-256 (§3). |
+| `proposePlan` / `planHash` | A Planner's non-authoritative plan proposal (§9). |
+| `bridgeMcpTool` | Wrap a legacy MCP tool as a neutral capability (tool-poisoning defense, §13). |
+
+**`@vcp/gateway`** — enforce (fails closed, §19):
+
+| Export | What it does |
+|---|---|
+| `invoke` | The end-to-end flow: verify → policy → grant → provider → attestation → audit. |
+| `Provider` (interface) | What a capability provider implements: `publicKey()` + `invoke()`. |
+| `verifyManifest` | Signature + recomputed `contract_hash` check (rug-pull defense, §4). |
+| `DefaultPolicy` / `PolicyAuthority` | The mandatory allow/deny decision; taint/data-flow aware (§6, §12). |
+| `mintGrant` / `verifyGrant` | Single-use, proof-bound grants tied to the exact call (§7). |
+| `verifyAttestation` / `signAttestation` / `auditEvent` | Result verification + signed audit (§9, §20). |
+
 ## Requirements
 
 - Node.js **v24+** (uses the built-in test runner and native TypeScript

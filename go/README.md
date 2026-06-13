@@ -11,6 +11,131 @@ Module: `github.com/hassard0/vcp-servers/go`. No third-party dependencies — on
 `crypto/ed25519`, `crypto/sha256`, `crypto/subtle`, `encoding/json`, `time`,
 `testing`, and friends from the standard library.
 
+## Install
+
+```sh
+go get github.com/hassard0/vcp-servers/go/...
+```
+
+Then import the two packages you need:
+
+```go
+import (
+	"github.com/hassard0/vcp-servers/go/sdk"     // Planner/Host side: no authority
+	"github.com/hassard0/vcp-servers/go/gateway" // the only actor with authority
+)
+```
+
+Requires Go 1.22+. No build tags, no codegen, no network access at build time.
+
+## Quickstart
+
+A complete, runnable, zero-to-working provider + gateway lives in
+[`examples/hello/main.go`](examples/hello/main.go). From the `go/` directory:
+
+```sh
+go run ./examples/hello
+```
+
+It builds and Ed25519-signs a tiny read-only capability manifest, prints its
+content-addressed `capability_id`, and runs one invocation through the Gateway —
+verify manifest → policy → mint a single-use proof-bound grant → invoke an
+in-process provider → verify the provider's signed attestation — then prints the
+verified result. (read-only ⇒ no user approval needed.) The heart of it:
+
+```go
+// 1. Keys: issuer signs the manifest + attestations; gateway signs grants + audit.
+issuerPub, issuerPriv, _ := ed25519.GenerateKey(nil)
+_, gatewayPriv, _ := ed25519.GenerateKey(nil)
+issuerSigner := sdk.Ed25519Signer{PrivateKey: issuerPriv}
+
+// 2. Build + sign a tiny read-only capability; identity is the contract hash.
+cap := sdk.Capability{
+	Name: "demo.greeting", Version: "1.0.0",
+	SummaryForUser:  "Return a friendly greeting for a name.",
+	SummaryForModel: "Pure, read-only greeting. No side effects.",
+	InputSchema:  map[string]any{"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}, "required": []any{"name"}},
+	OutputSchema: map[string]any{"type": "object"},
+	Effects:      map[string]any{"class": "read-only", "external_side_effect": false},
+	Determinism:  map[string]any{"class": "pure"},
+	Sandbox:      map[string]any{"filesystem": "none", "network": []any{}, "secrets": []any{}},
+}
+manifest := sdk.NewManifest("did:web:demo.example", "demo.provider", cap)
+_ = manifest.Sign(issuerSigner) // computes contract_hash + capability_id, then signs
+fmt.Println(manifest.Capability.ID) // vcp:cap:demo.greeting@sha256:...
+
+// 3. Propose a plan (no authority — the Gateway binds the grant to its hash).
+args := map[string]any{"name": "world"}
+plan, _, _ := sdk.ProposePlan([]sdk.PlanStep{{ID: "s1", Capability: manifest.Capability.ID, Arguments: args, Effect: "read-only"}})
+
+// 4. Wire the Gateway (the only actor with authority).
+gw := gateway.NewGateway()
+gw.Policy = gateway.NewDefaultPolicy()
+gw.GrantSigner, gw.AuditSigner = issuerSigner, issuerSigner
+gw.Audit = &gateway.MemoryAuditSink{}
+gw.TrustedIssuers = map[string]bool{"did:web:demo.example": true}
+gw.ManifestVerifier = sdk.Ed25519Verifier{PublicKey: issuerPub}
+gw.ProviderVerifier = sdk.Ed25519Verifier{PublicKey: issuerPub}
+
+// 5. A tiny in-process provider (InMemoryProvider verifies the grant + signs the attestation).
+provider := gateway.InMemoryProvider{
+	CapabilityID: manifest.Capability.ID,
+	Signer:       issuerSigner,
+	Exec: func(arguments any, dryRun bool) (any, []string, error) {
+		a, _ := arguments.(map[string]any)
+		name, _ := a["name"].(string)
+		return map[string]any{"greeting": "Hello, " + name + "!"}, nil, nil
+	},
+}
+
+// 6. Invoke: verify → policy → mint grant → invoke → verify attestation → audit.
+res, _ := gw.Invoke(provider, gateway.InvokeParams{
+	Manifest: manifest, Subject: "user:alice", Model: "agent:demo",
+	Host: "examples.hello", Arguments: args, Plan: plan, Effect: "read-only",
+})
+fmt.Println(res.Decision, res.Result) // allow map[greeting:Hello, world!]
+```
+
+See the example file itself for the fully-commented, runnable version.
+
+## Public API
+
+The two packages split cleanly: `sdk` is the Planner/Host side and holds **no
+authority**; `gateway` is the **only** actor that decides and enforces.
+
+### `sdk` (Planner/Host primitives)
+
+| Identifier | What it does |
+|---|---|
+| `Canonicalize(v) ([]byte, error)` | JCS / RFC 8785 serialization (§3). |
+| `HashJCS(v) (string, error)` | `sha256:`-prefixed content hash over JCS. |
+| `Contract`, `Contract.ContractHash`, `Contract.CapabilityID` | The eight identity-bearing fields and their hash/id (§4). |
+| `Capability`, `Manifest` | The capability object and its signed manifest envelope (§5.2). |
+| `NewManifest(issuer, provider, cap)` | Build an unsigned manifest skeleton. |
+| `Manifest.ComputeIdentity()`, `Manifest.Sign(Signer)` | Fill `contract_hash`/`id`; sign with the signature block removed (§3, §4). |
+| `Signer`, `Verifier`, `Ed25519Signer`, `Ed25519Verifier`, `Signature` | Detached Ed25519 signing/verification; `alg` travels in-band. |
+| `ArgumentHash(args)` | `argument_hash` a grant binds to (§7/§8). |
+| `Plan`, `PlanStep`, `DataRef`, `ProposePlan(steps)`, `Plan.PlanHash` | Planner-side plan proposal + its hash (§9). |
+| `BridgeMCPTool(...)`, `MCPTool`, `ObservedToolHash` | Wrap an upstream MCP tool as a VCP manifest (§16). |
+| `Command`, `ArgvToken`, `ResolveArgv`, `ArgvHash`, `BridgeExistingCLI(...)` | Command/CLI capabilities — argv-only, no shell (§28). |
+| `EnvironmentStatement`, `Attester`, `StatementAttester` | Optional environment attestation (§27). |
+
+### `gateway` (authority + enforcement)
+
+| Identifier | What it does |
+|---|---|
+| `NewGateway()`, `Gateway`, `Gateway.Invoke(Provider, InvokeParams)` | The enforcement point; `Invoke` runs the full §9 plan/apply flow. |
+| `InvokeParams`, `InvokeResult` | Input/output of an invocation. |
+| `Provider`, `InMemoryProvider` | Provider interface + a reference in-process provider that verifies the grant and signs an attestation. |
+| `PolicyAuthority`, `DefaultPolicy`, `NewDefaultPolicy()`, `Decision`, `Constraints` | The policy decision interface (§6) and a taint/approval-aware default. |
+| `VerifyManifest(...)`, `ManifestVerdict` | Signature + recomputed-identity + trusted-issuer checks (§5.2, §4). |
+| `MintGrant(...)`, `VerifyGrant(...)`, `Grant`, `GrantAttempt`, `GrantDecision` | Single-use, proof-bound grants (§7/§8). |
+| `Attestation`, `ResultEnvelope`, `SignAttestation`, `VerifyAttestation` | Provider-signed result attestation + its verification (§9). |
+| `CheckDataFlow`, `CheckAuthority`, `PropagateLabel`, `Label`, `DataFlow` | The taint / data-flow engine (§12). |
+| `AuditEvent`, `AuditSink`, `MemoryAuditSink` | Signed, tamper-evident audit trail (§20). |
+| `TaskManager`, `Task` (§21); `InvokeOBO`, `DelegationChain`, `TokenExchangeBroker` (§26); `VerifyInterface` (§22) | Tasks, multi-provider OBO, and interface capabilities. |
+| `RunCalendarScenario(now)`, `RunFanoutScenario(...)` | End-to-end worked examples (§16). |
+
 ## Layout
 
 | Package | Role | Key files |
@@ -136,6 +261,7 @@ Module: `github.com/hassard0/vcp-servers/go`. No third-party dependencies — on
 go build ./...
 go test ./...
 go vet ./...
+go run ./examples/hello   # the runnable Quickstart end-to-end demo
 ```
 
 The conformance tests (`sdk/vectors_test.go`, `gateway/vectors_test.go`) read the

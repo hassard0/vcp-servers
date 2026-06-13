@@ -29,6 +29,8 @@ type Ed25519Signer struct {
 	PrivateKey ed25519.PrivateKey
 }
 
+// Sign returns the Ed25519 signature over message, or an error if the key size is
+// wrong. It implements Signer.
 func (s Ed25519Signer) Sign(message []byte) ([]byte, error) {
 	if len(s.PrivateKey) != ed25519.PrivateKeySize {
 		return nil, fmt.Errorf("signing: invalid Ed25519 private key size %d", len(s.PrivateKey))
@@ -36,6 +38,7 @@ func (s Ed25519Signer) Sign(message []byte) ([]byte, error) {
 	return ed25519.Sign(s.PrivateKey, message), nil
 }
 
+// Algorithm reports the in-band algorithm identifier "Ed25519". It implements Signer.
 func (s Ed25519Signer) Algorithm() string { return "Ed25519" }
 
 // Ed25519Verifier verifies Ed25519 signatures against a public key.
@@ -43,6 +46,8 @@ type Ed25519Verifier struct {
 	PublicKey ed25519.PublicKey
 }
 
+// Verify reports whether signature is a valid Ed25519 signature over message. A
+// wrong-sized public key returns false (fail closed). It implements Verifier.
 func (v Ed25519Verifier) Verify(message, signature []byte) bool {
 	if len(v.PublicKey) != ed25519.PublicKeySize {
 		return false
@@ -50,6 +55,7 @@ func (v Ed25519Verifier) Verify(message, signature []byte) bool {
 	return ed25519.Verify(v.PublicKey, message, signature)
 }
 
+// Algorithm reports the in-band algorithm identifier "Ed25519". It implements Verifier.
 func (v Ed25519Verifier) Algorithm() string { return "Ed25519" }
 
 // Signature is the in-band signature block carried by manifests, grants,

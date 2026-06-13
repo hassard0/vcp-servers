@@ -10,6 +10,89 @@ truth in [`../conformance/vectors`](../conformance/vectors).
 > policy decision, explicit consent, and a single-use proof-bound grant minted
 > by an enforcing Gateway. (SPEC abstract.)
 
+## Install
+
+```bash
+pip install vcp-python          # core — runs on the standard library alone
+pip install vcp-python[crypto]  # adds `cryptography` for real Ed25519 signing
+```
+
+No heavy required dependencies: without `cryptography` the SDK transparently
+falls back to a clearly-labelled HMAC signer behind the same interface, so
+everything below runs out of the box. (For working against the source tree,
+`pip install -e .` / `-e ".[crypto]"` from `python/`.)
+
+## Quickstart
+
+Zero to a working provider + Gateway in under 30 lines. See
+[`examples/hello.py`](examples/hello.py) for the fully-commented version
+(build + sign a capability, mint a single-use grant, invoke an in-process
+provider, verify its attestation). Run it from `python/`:
+
+```bash
+python examples/hello.py
+```
+
+```python
+from vcp_gateway import DefaultPolicy, Gateway, InMemoryProvider
+from vcp_sdk import build_manifest, default_signer, propose_plan
+
+gw_signer, prov_signer = default_signer(), default_signer()
+
+# Build + sign a tiny read-only capability (read-only => no approval needed).
+manifest = build_manifest(
+    issuer="did:web:example.com", provider="example.echo",
+    name="echo.say", version="1.0.0",
+    input_schema={"type": "object", "additionalProperties": False,
+                  "properties": {"text": {"type": "string"}}, "required": ["text"]},
+    output_schema={"type": "object", "properties": {"echoed": {"type": "string"}},
+                   "required": ["echoed"]},
+    effects={"class": "read-only", "external_side_effect": False},
+    determinism={"class": "pure"},
+    sandbox={"filesystem": "none", "network": [], "secrets": []},
+    summary_for_user="Echo a short string back.",
+    summary_for_model="Echo the given text. Read-only.",
+    signer=gw_signer,
+)
+cap_id = manifest["capability"]["id"]            # content-addressed capability_id
+
+# An in-process provider that signs an attestation over its result.
+provider = InMemoryProvider(cap_id, signer=prov_signer,
+                            handler=lambda args, dry_run: {"echoed": args["text"]})
+
+args = {"text": "hello, vcp"}
+plan = propose_plan([{"id": "s1", "capability": cap_id, "arguments": args, "effect": "read-only"}])
+
+# verify manifest -> policy -> mint single-use grant -> invoke -> verify attestation.
+gateway = Gateway(policy=DefaultPolicy(), signer=gw_signer,
+                  trusted_issuers={"did:web:example.com"})
+out = gateway.invoke(
+    manifest=manifest, provider=provider, arguments=args,
+    subject="user:alice", plan_hash=plan["plan_hash"],
+    holder_jkt="sha256:" + "0" * 64,
+    manifest_verifier=gw_signer.verifier(),
+    attestation_verifier=prov_signer.verifier(),
+)
+print(out["result"])   # {'echoed': 'hello, vcp'}  (labelled untrusted_tool_result)
+```
+
+## Public API
+
+`vcp_sdk` (planner-side, holds **no** authority):
+`build_manifest` / `build_contract`, `capability_id` / `contract_hash` /
+`argument_hash`, `propose_plan` / `plan_hash`, `canonical_json` / `hash`,
+`default_signer` + `Signer`/`Verifier` (`Ed25519Signer`, `HmacFallbackSigner`,
+`CRYPTOGRAPHY_AVAILABLE`), `bridge_mcp_tool` (§16), and the command/CLI (§28)
+and environment-attestation (§27) helpers. Full list: `vcp_sdk.__all__`.
+
+`vcp_gateway` (the enforcing trust boundary):
+`Gateway` / `Provider` / `InMemoryProvider`, `DefaultPolicy` / `PolicyAuthority` /
+`make_policy_request`, `mint_grant` / `verify_grant`, `verify_manifest` /
+`validate_arguments` / `verify_attestation`, the taint engine
+(`most_restrictive`, `authority_decision`, `data_flow_decision`), `audit_event` /
+`AuditLog`, plus tasks (§21), delegation/OBO (§26) and interface (§22) helpers.
+Full list: `vcp_gateway.__all__`. See the per-symbol tables below.
+
 ## Packages
 
 ### `vcp_sdk` — lightweight client / planner-side SDK + MCP bridge
@@ -136,19 +219,6 @@ capability_id : vcp:cap:calendar.create_event@sha256:6706...6a18
 argument_hash : sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d
 ```
 
-## Install
-
-No heavy required dependencies. Real Ed25519 is an optional extra:
-
-```bash
-cd python
-python -m pip install -e .            # core (HMAC-fallback signer)
-python -m pip install -e ".[crypto]"  # adds cryptography for real Ed25519
-```
-
-The conformance vectors require **no** signing and **no** install — they run
-against the source tree directly.
-
 ## Run the tests
 
 From `python/` (stdlib `unittest`, no third-party test deps):
@@ -169,9 +239,15 @@ a `VCP_VECTORS_DIR` override), so they pass from any working directory.
 Expected (SDK + Gateway conformance + the VCP-HTTP server/demo tests):
 
 ```
-Ran 36 tests in 1.2XXs
+Ran 81 tests in 1.3XXs
 
 OK
+```
+
+You can also run the smallest end-to-end example directly:
+
+```bash
+python examples/hello.py
 ```
 
 ## Worked example (§16 calendar scenario)

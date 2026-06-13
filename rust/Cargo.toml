@@ -9,6 +9,8 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
+repository = "https://github.com/hassard0/vcp-servers"
+homepage = "https://github.com/hassard0/vcp-servers"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
