@@ -70,6 +70,7 @@ _REGISTRY_ROWS: tuple[tuple[str, Category, bool], ...] = (
     ("ADDITIONAL_PROPERTY", Category.DENY, True),
     ("SANDBOX_VIOLATION", Category.DENY, True),
     ("ATTESTATION_INVALID", Category.DENY, True),
+    ("ATTESTATION_REQUIRED", Category.DENY, True),
     ("REPLAY_EVIDENCE_MISSING", Category.DENY, True),
     ("TASK_EXPIRED", Category.DENY, True),
     ("SUBJECT_MISMATCH", Category.DENY, True),

@@ -10,6 +10,7 @@ Reproduces the conformance vectors ``grant-rules.json`` and ``taint.json``.
 
 from __future__ import annotations
 
+from .attestation import verify_environment_attestation
 from .audit import AuditLog, audit_event
 from .delegation import (
     ExchangedCredential,
@@ -91,6 +92,8 @@ __all__ = [
     "verify_credential_audience",
     "verify_grant_audience",
     "attenuate",
+    # environment attestation (§27)
+    "verify_environment_attestation",
     # interface capability (§22)
     "verify_interface",
     "check_host_action",

@@ -44,6 +44,7 @@ fn calendar_manifest(issuer_signer: &Ed25519Signer) -> Manifest {
         class: "write-reversible".to_string(),
         external_side_effect: true,
         requires_user_approval: None,
+        requires_attestation: None,
         compensating_action: Some("calendar.delete_event".to_string()),
         may_send_to: None,
         may_read_from: None,
@@ -270,6 +271,7 @@ fn calendar_scenario_end_to_end() {
             holder_jkt: holder.jkt(),
             delegation_chain: None,
             token_exchange: None,
+            attestation_ref: None,
         },
         &gateway,
     );
@@ -309,6 +311,7 @@ fn calendar_scenario_end_to_end() {
             holder_jkt: holder.jkt(),
             delegation_chain: None,
             token_exchange: None,
+            attestation_ref: None,
         },
         &gateway,
     );
@@ -367,6 +370,7 @@ fn calendar_scenario_end_to_end() {
             holder_jkt: holder.jkt(),
             delegation_chain: None,
             token_exchange: None,
+            attestation_ref: None,
         },
         &gateway,
     );

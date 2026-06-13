@@ -54,6 +54,11 @@ pub struct AuditEvent {
     /// The exchanged credential's key thumbprint, by reference (§26.5).
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub credential_jkt: Option<String>,
+    /// The verified environment-attestation reference (id + bound nonce), recorded
+    /// by reference (§27.2, §27.4 step 4). Never the full evidence. Present only on
+    /// an attestation-gated grant.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub attestation_ref: Option<crate::grant::AttestationRef>,
     pub timestamp: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub signature: Option<AuditSignature>,
@@ -110,6 +115,48 @@ pub fn audit_event(
         delegation_chain: None,
         credential_audience: None,
         credential_jkt: None,
+        attestation_ref: None,
+        timestamp: timestamp.to_string(),
+        signature: None,
+    }
+    .sign(signer)
+}
+
+/// Build (and sign) an audit event for an attestation-gated grant (§27.4 step 4):
+/// the verified environment-attestation reference is recorded by reference (id +
+/// bound nonce), never the full evidence.
+#[allow(clippy::too_many_arguments)]
+pub fn attested_audit_event(
+    event: &str,
+    trace_id: &str,
+    subject: &str,
+    capability_id: &str,
+    decision: &str,
+    reason_code: &str,
+    attestation_ref: crate::grant::AttestationRef,
+    timestamp: &str,
+    signer: &dyn Signer,
+) -> AuditEvent {
+    AuditEvent {
+        event: event.to_string(),
+        trace_id: trace_id.to_string(),
+        subject: subject.to_string(),
+        host: None,
+        model: None,
+        provider: None,
+        capability_id: capability_id.to_string(),
+        plan_hash: None,
+        argument_hash: None,
+        grant_id: None,
+        decision: decision.to_string(),
+        reason_code: Some(reason_code.to_string()),
+        effect: None,
+        result_hash: None,
+        effect_committed: None,
+        delegation_chain: None,
+        credential_audience: None,
+        credential_jkt: None,
+        attestation_ref: Some(attestation_ref),
         timestamp: timestamp.to_string(),
         signature: None,
     }
@@ -157,6 +204,7 @@ pub fn upstream_audit_event(u: UpstreamAudit, signer: &dyn Signer) -> AuditEvent
         delegation_chain: Some(u.delegation_chain),
         credential_audience: Some(u.credential_audience.to_string()),
         credential_jkt: Some(u.credential_jkt.to_string()),
+        attestation_ref: None,
         timestamp: u.timestamp.to_string(),
         signature: None,
     }

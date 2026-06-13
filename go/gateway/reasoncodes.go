@@ -14,6 +14,12 @@ package gateway
 // way to reference a code from within its subsystem; the Reason* constants here
 // are the single authoritative registry mirror with category metadata.
 
+// ReasonCode is a stable, machine-actionable reason_code from the §23 registry.
+// It is a string type so it interoperates with the untyped Reason* constants
+// below (which assign cleanly to it) and with the plain-string ReasonCode fields
+// on Decision / GrantDecision / AttestationVerdict.
+type ReasonCode = string
+
 // ReasonCategory classifies a reason code as allow, challenge, or deny (spec §23).
 type ReasonCategory string
 
@@ -48,6 +54,7 @@ const (
 	ReasonAdditionalProperty       = "ADDITIONAL_PROPERTY"
 	ReasonSandboxViolation         = "SANDBOX_VIOLATION"
 	ReasonAttestationInvalid       = "ATTESTATION_INVALID"
+	ReasonAttestationRequired      = "ATTESTATION_REQUIRED"
 	ReasonReplayEvidenceMissing    = "REPLAY_EVIDENCE_MISSING"
 	ReasonTaskExpired              = "TASK_EXPIRED"
 	ReasonSubjectMismatch          = "SUBJECT_MISMATCH"
@@ -80,6 +87,7 @@ var ReasonCodeCategories = map[string]ReasonCategory{
 	ReasonAdditionalProperty:         CategoryDeny,
 	ReasonSandboxViolation:           CategoryDeny,
 	ReasonAttestationInvalid:         CategoryDeny,
+	ReasonAttestationRequired:        CategoryDeny,
 	ReasonReplayEvidenceMissing:      CategoryDeny,
 	ReasonTaskExpired:                CategoryDeny,
 	ReasonSubjectMismatch:            CategoryDeny,

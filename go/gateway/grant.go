@@ -32,8 +32,30 @@ type Grant struct {
 	// TokenExchange records the per-provider exchanged credential this grant is
 	// bound to (spec §26.1, §26.5): the audience, the actor claim, and the
 	// credential thumbprint by reference (never the raw token).
-	TokenExchange    *TokenExchange `json:"token_exchange,omitempty"`
-	GatewaySignature *sdk.Signature `json:"gateway_signature,omitempty"`
+	TokenExchange *TokenExchange `json:"token_exchange,omitempty"`
+	// AttestationRef records, by reference, the verified environment attestation
+	// that gated this grant (spec §27.2 attest-once/reference-many, §27.4 step 4).
+	// It is present ONLY when the capability required attestation; absent/false
+	// leaves it nil, so this field is backward compatible (omitempty).
+	AttestationRef   *AttestationRef `json:"attestation_ref,omitempty"`
+	GatewaySignature *sdk.Signature  `json:"gateway_signature,omitempty"`
+}
+
+// AttestationRef is the small per-call reference to a verified environment
+// attestation (spec §27.2): an id plus the nonce it was bound to. Full evidence is
+// never re-transmitted per call — only this reference. It is recorded on the grant
+// and (by reference) in the audit event (§27.4 step 4).
+type AttestationRef struct {
+	// ID identifies the cached, verified attestation result (keyed by the actor's
+	// key and boot_epoch, §27.2).
+	ID string `json:"id"`
+	// Nonce is the challenge the statement was bound to (§27.4 step 1).
+	Nonce string `json:"nonce"`
+	// SubjectRole is the attested role (gateway/provider/agent, §27.3).
+	SubjectRole string `json:"subject_role,omitempty"`
+	// BuildDigest is the verified build the attestation proved (recorded by
+	// reference; §27.4 step 4).
+	BuildDigest string `json:"build_digest,omitempty"`
 }
 
 // ProofOfPossession is the DPoP-style key binding (spec §7). jkt is the SHA-256
@@ -71,6 +93,10 @@ type MintGrantParams struct {
 	DelegationChain DelegationChain
 	// TokenExchange is the per-provider exchanged-credential binding (spec §26.1).
 	TokenExchange *TokenExchange
+	// AttestationRef is the verified environment attestation reference to attach
+	// (spec §27.2, §27.4 step 4). Nil when the capability did not require
+	// attestation, leaving the grant unchanged (backward compatible).
+	AttestationRef *AttestationRef
 }
 
 // MintGrant constructs and signs a grant bound to audience(capability_id),
@@ -112,6 +138,7 @@ func MintGrant(s sdk.Signer, p MintGrantParams) (Grant, error) {
 		},
 		DelegationChain: p.DelegationChain,
 		TokenExchange:   p.TokenExchange,
+		AttestationRef:  p.AttestationRef,
 	}
 	if s != nil {
 		mp, err := decodeToMap(g)

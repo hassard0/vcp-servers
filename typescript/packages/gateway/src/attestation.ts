@@ -10,6 +10,7 @@ import {
   type EffectClass,
   type Signer,
   type DelegationChain,
+  type GrantAttestationRef,
 } from "@vcp/sdk";
 import { constantTimeStringEq } from "./verify-manifest.ts";
 
@@ -105,6 +106,8 @@ export interface AuditEventInput {
   credential_audience?: string;
   /** Thumbprint of the exchanged credential, by reference (§26.5). */
   credential_jkt?: string;
+  /** Verified environment attestation, recorded by reference (§27.4 step 4). */
+  attestation_ref?: GrantAttestationRef & { result: "verified" };
   timestamp?: string;
 }
 
@@ -140,6 +143,7 @@ export async function auditEvent(
       ? { credential_audience: input.credential_audience }
       : {}),
     ...(input.credential_jkt ? { credential_jkt: input.credential_jkt } : {}),
+    ...(input.attestation_ref ? { attestation_ref: input.attestation_ref } : {}),
   };
   if (signer) {
     const value = await signer.sign(signingBytes(evt));

@@ -262,6 +262,7 @@ fn multiprovider_fanout_one_approval() {
                 holder_jkt: holder.jkt(),
                 delegation_chain: Some(chain.clone()),
                 token_exchange: Some(token_exchange.clone()),
+                attestation_ref: None,
             },
             &gateway,
         );

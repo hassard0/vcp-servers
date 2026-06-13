@@ -39,6 +39,7 @@ def audit_event(
     result_hash: Optional[str] = None,
     effect_committed: Optional[bool] = None,
     budget_spent: Optional[dict] = None,
+    attestation_ref: Optional[dict] = None,
     timestamp: Optional[str] = None,
     signer: Optional[Signer] = None,
 ) -> dict:
@@ -69,6 +70,7 @@ def audit_event(
         "result_hash": result_hash,
         "effect_committed": effect_committed,
         "budget_spent": budget_spent,
+        "attestation_ref": attestation_ref,
     }
     for k, v in optional.items():
         if v is not None:

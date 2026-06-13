@@ -34,6 +34,8 @@ test("reason-code registry (§23): every vector code is exported with correct ca
   }
 
   // 2. The registry is exactly the vector (no extra, no missing) and in order.
+  //    The normative registry now has 26 codes (adds ATTESTATION_REQUIRED, §27).
+  assert.equal(v.codes.length, 26, "vector must define 26 reason codes");
   assert.equal(
     REASON_CODE_REGISTRY.length,
     v.codes.length,

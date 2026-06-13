@@ -102,6 +102,11 @@
       "remediable": true
     },
     {
+      "code": "ATTESTATION_REQUIRED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
       "code": "REPLAY_EVIDENCE_MISSING",
       "category": "deny",
       "remediable": true

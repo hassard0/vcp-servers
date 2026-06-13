@@ -49,6 +49,7 @@ def mint_grant(
     grant_id: Optional[str] = None,
     signer: Optional[Signer] = None,
     attenuated_from: Optional[str] = None,
+    attestation_ref: Optional[Mapping[str, Any]] = None,
 ) -> dict:
     """Mint a single-use, proof-bound grant (SPEC §7 / grant.schema.json).
 
@@ -80,6 +81,11 @@ def mint_grant(
         grant["budget"] = dict(budget)
     if attenuated_from is not None:
         grant["attenuated_from"] = attenuated_from
+    # §27: when the capability required environment attestation, the grant
+    # carries a small attestation_ref (verified result by reference, never the
+    # full evidence). Covered by the gateway_signature below.
+    if attestation_ref is not None:
+        grant["attestation_ref"] = dict(attestation_ref)
 
     if signer is not None:
         grant = sign_document(grant, signer, signature_field="gateway_signature")

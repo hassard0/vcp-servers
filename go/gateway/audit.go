@@ -33,9 +33,13 @@ type AuditEvent struct {
 	CredentialAudience string `json:"credential_audience,omitempty"`
 	// CredentialJKT is the exchanged credential's key thumbprint, recorded by
 	// reference alongside the audience (spec §26.5).
-	CredentialJKT string         `json:"credential_jkt,omitempty"`
-	Timestamp     string         `json:"timestamp"`
-	Signature     *sdk.Signature `json:"signature,omitempty"`
+	CredentialJKT string `json:"credential_jkt,omitempty"`
+	// AttestationRef records the verified environment attestation BY REFERENCE
+	// (spec §27.4 step 4): an id + nonce, never the full evidence. Present only when
+	// the capability required attestation; omitempty keeps it backward compatible.
+	AttestationRef *AttestationRef `json:"attestation_ref,omitempty"`
+	Timestamp      string          `json:"timestamp"`
+	Signature      *sdk.Signature  `json:"signature,omitempty"`
 }
 
 // Sign signs the audit event over its canonical form with the signature block

@@ -184,6 +184,7 @@ REASON_CODES = [
     ("ADDITIONAL_PROPERTY", "deny", True),
     ("SANDBOX_VIOLATION", "deny", True),
     ("ATTESTATION_INVALID", "deny", True),
+    ("ATTESTATION_REQUIRED", "deny", True),
     ("REPLAY_EVIDENCE_MISSING", "deny", True),
     ("TASK_EXPIRED", "deny", True),
     ("SUBJECT_MISMATCH", "deny", True),
@@ -240,6 +241,35 @@ write("task-rules.json", {
          "expect": {"decision": "deny", "reason_code": "TASK_EXPIRED"}},
         {"name": "invoke-after-cancel", "op": "invoke", "subject": "user:123", "now": "2026-06-13T16:05:00Z", "cancelled": True,
          "expect": {"decision": "deny", "reason_code": "GRANT_REVOKED"}},
+    ],
+})
+
+# ---------------------------------------------------- environment-attestation
+# Environment attestation (§27): off by default, statement tier, nonce-bound.
+# now is the evaluation time; the Gateway issued challenge_nonce.
+TRUSTED_BUILD = "sha256:" + "ab" * 32
+write("environment-attestation.json", {
+    "description": "Environment attestation verdicts (§27). A capability with requires_attestation=true gates grant minting on a verified Provider environment statement, bound to the Gateway's challenge nonce, unexpired, with a trusted build digest. requires_attestation=false ⇒ no attestation needed (zero friction). now is evaluation time; challenge_nonce is the Gateway-issued nonce.",
+    "challenge_nonce": "nonce-abc-123",
+    "now": "2026-06-13T16:00:00Z",
+    "trusted_build_digests": [TRUSTED_BUILD],
+    "cases": [
+        {"name": "not-required-no-statement", "requires_attestation": False, "statement": None,
+         "expect": {"decision": "allow", "reason_code": "OK"}},
+        {"name": "required-valid-statement", "requires_attestation": True,
+         "statement": {"tier": "statement", "subject_role": "provider", "build_digest": TRUSTED_BUILD, "nonce": "nonce-abc-123", "expires_at": "2026-06-13T16:30:00Z"},
+         "expect": {"decision": "allow", "reason_code": "OK"}},
+        {"name": "required-but-missing", "requires_attestation": True, "statement": None,
+         "expect": {"decision": "deny", "reason_code": "ATTESTATION_REQUIRED"}},
+        {"name": "required-wrong-nonce", "requires_attestation": True,
+         "statement": {"tier": "statement", "subject_role": "provider", "build_digest": TRUSTED_BUILD, "nonce": "stale-nonce", "expires_at": "2026-06-13T16:30:00Z"},
+         "expect": {"decision": "deny", "reason_code": "ATTESTATION_INVALID"}},
+        {"name": "required-untrusted-build", "requires_attestation": True,
+         "statement": {"tier": "statement", "subject_role": "provider", "build_digest": "sha256:" + "cd" * 32, "nonce": "nonce-abc-123", "expires_at": "2026-06-13T16:30:00Z"},
+         "expect": {"decision": "deny", "reason_code": "ATTESTATION_INVALID"}},
+        {"name": "required-expired", "requires_attestation": True,
+         "statement": {"tier": "statement", "subject_role": "provider", "build_digest": TRUSTED_BUILD, "nonce": "nonce-abc-123", "expires_at": "2026-06-13T15:50:00Z"},
+         "expect": {"decision": "deny", "reason_code": "ATTESTATION_INVALID"}},
     ],
 })
 

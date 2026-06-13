@@ -9,6 +9,7 @@ import {
   type ProofOfPossession,
   type DelegationChain,
   type TokenExchangeRef,
+  type GrantAttestationRef,
 } from "@vcp/sdk";
 import { constantTimeStringEq } from "./verify-manifest.ts";
 
@@ -31,6 +32,8 @@ export interface MintGrantInput {
   delegation_chain?: DelegationChain;
   /** Per-provider exchanged-credential reference (§26.1). */
   token_exchange?: TokenExchangeRef;
+  /** Reference to the verified environment attestation that gated this grant (§27). */
+  attestation_ref?: GrantAttestationRef;
 }
 
 /**
@@ -56,6 +59,7 @@ export async function mintGrant(input: MintGrantInput, signer: Signer): Promise<
     ...(input.attenuated_from ? { attenuated_from: input.attenuated_from } : {}),
     ...(input.delegation_chain ? { delegation_chain: input.delegation_chain } : {}),
     ...(input.token_exchange ? { token_exchange: input.token_exchange } : {}),
+    ...(input.attestation_ref ? { attestation_ref: input.attestation_ref } : {}),
   };
   const value = await signer.sign(grantSigningBytes(unsigned));
   return { ...unsigned, gateway_signature: { alg: signer.alg, value } };

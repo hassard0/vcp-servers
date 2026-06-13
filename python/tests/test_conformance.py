@@ -18,6 +18,7 @@ from vcp_gateway import (
     evaluate_operation,
     most_restrictive,
     verify_credential_audience,
+    verify_environment_attestation,
     verify_grant,
     verify_grant_audience,
 )
@@ -143,6 +144,16 @@ class ReasonCodeRegistryVector(unittest.TestCase):
         vector_codes = {row["code"] for row in data["codes"]}
         self.assertEqual(set(rc.all_codes()), vector_codes)
 
+    def test_registry_has_26_codes_in_spec_order(self):
+        """SPEC §23: the registry carries exactly 26 codes, including
+        ATTESTATION_REQUIRED right after ATTESTATION_INVALID."""
+        data = _vectors.load("reason-codes.json")
+        vector_order = [row["code"] for row in data["codes"]]
+        self.assertEqual(len(vector_order), 26)
+        self.assertEqual(list(rc.all_codes()), vector_order)
+        idx = vector_order.index("ATTESTATION_INVALID")
+        self.assertEqual(vector_order[idx + 1], "ATTESTATION_REQUIRED")
+
 
 class TaskRulesVector(unittest.TestCase):
     """SPEC §21: task lifecycle verdicts (subject scope, expiry, cancel=revoke)."""
@@ -211,6 +222,26 @@ class DelegationVector(unittest.TestCase):
                     self.assertEqual(
                         verdict["reason_code"], case["expect"]["reason_code"]
                     )
+
+
+class EnvironmentAttestationVector(unittest.TestCase):
+    """SPEC §27.4: environment-attestation verdicts (the RATS Verifier)."""
+
+    def test_all_cases(self):
+        data = _vectors.load("environment-attestation.json")
+        for case in data["cases"]:
+            with self.subTest(case=case["name"]):
+                verdict = verify_environment_attestation(
+                    case["statement"],
+                    requires_attestation=case["requires_attestation"],
+                    challenge_nonce=data["challenge_nonce"],
+                    now=data["now"],
+                    trusted_build_digests=data["trusted_build_digests"],
+                )
+                self.assertEqual(verdict["decision"], case["expect"]["decision"])
+                self.assertEqual(
+                    verdict["reason_code"], case["expect"]["reason_code"]
+                )
 
 
 if __name__ == "__main__":

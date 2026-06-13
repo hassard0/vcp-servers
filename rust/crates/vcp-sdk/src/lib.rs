@@ -14,6 +14,7 @@
 //!
 //! The Planner has no authority; everything authoritative lives in `vcp-gateway`.
 
+pub mod attestation;
 pub mod bridge;
 pub mod identity;
 pub mod jcs;
@@ -21,6 +22,9 @@ pub mod manifest;
 pub mod plan;
 pub mod signer;
 
+pub use attestation::{
+    AttestationClaims, Attester, EnvironmentStatement, StatementAttester, StatementSignature,
+};
 pub use identity::{argument_hash, argument_hash_value, capability_id, contract_hash};
 pub use jcs::{canonicalize, canonicalize_value, hash, hash_value};
 pub use manifest::{Capability, Contract, Determinism, Effects, Manifest, Sandbox, Signature};

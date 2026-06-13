@@ -21,6 +21,11 @@ pub struct Effects {
     pub external_side_effect: bool,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub requires_user_approval: Option<bool>,
+    /// Whether this capability gates grant minting on a verified environment
+    /// attestation of the executing actor (§27.1). Off by default: when absent or
+    /// `false` no actor attests and there is zero added round-trip.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub requires_attestation: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub compensating_action: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]

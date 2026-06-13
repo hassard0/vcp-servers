@@ -15,8 +15,8 @@ Module: `github.com/hassard0/vcp-servers/go`. No third-party dependencies — on
 
 | Package | Role | Key files |
 |---|---|---|
-| `sdk` | Lightweight client/SDK + MCP bridge (Planner/Host side, no authority) | `jcs.go`, `hash.go`, `identity.go`, `signing.go`, `manifest.go`, `bridge.go` |
-| `gateway` | Heavy enforcing Gateway (the only actor with authority) | `policy.go`, `grant.go`, `taint.go`, `verify.go`, `attestation.go`, `audit.go`, `invoke.go`, `provider.go`, `scenario.go`, `reasoncodes.go`, `task.go`, `delegation.go`, `iface.go`, `fanout_scenario.go` |
+| `sdk` | Lightweight client/SDK + MCP bridge (Planner/Host side, no authority) | `jcs.go`, `hash.go`, `identity.go`, `signing.go`, `manifest.go`, `bridge.go`, `attestation.go` |
+| `gateway` | Heavy enforcing Gateway (the only actor with authority) | `policy.go`, `grant.go`, `taint.go`, `verify.go`, `attestation.go`, `audit.go`, `invoke.go`, `provider.go`, `scenario.go`, `reasoncodes.go`, `task.go`, `delegation.go`, `iface.go`, `envattest.go`, `fanout_scenario.go` |
 
 ## What it satisfies
 
@@ -68,6 +68,24 @@ Module: `github.com/hassard0/vcp-servers/go`. No third-party dependencies — on
   `interface` block: `content_hash` over the rendered bytes
   (`INTERFACE_HASH_MISMATCH`) and the `host_actions` allowlist. `iface_test.go` is
   security test #18 (UI artifact swap).
+- **§27 Environment attestation (OPTIONAL, off by default)** — `sdk/attestation.go`
+  adds the `EnvironmentStatement` struct, the `Attester` interface, and the
+  reference `StatementAttester` (statement tier, §27.3) that signs a statement with
+  the actor's existing Ed25519 key. `gateway/envattest.go` adds
+  `VerifyEnvironmentAttestation` (the Gateway-as-Verifier appraisal, §27.4):
+  not-required ⇒ allow OK (zero friction); required+missing ⇒
+  `ATTESTATION_REQUIRED`; required+wrong-nonce/untrusted-build/expired/bad-signature
+  ⇒ `ATTESTATION_INVALID`; required+valid ⇒ OK. `gateway.Invoke` gates grant minting
+  on `effects.requires_attestation`: on failure no grant is minted (spec §19); on
+  success the verified attestation is recorded **by reference** (`AttestationRef`:
+  id + nonce) on the grant and the audit event (§27.2, §27.4 step 4) — both
+  `omitempty`, so a capability without `requires_attestation` is byte-for-byte
+  unchanged. `TestEnvironmentAttestationVector` reproduces
+  `environment-attestation.json`; `TestSecurityTest19UnattestedProvider` is security
+  test #19 (end-to-end: missing/forged ⇒ no grant, valid ⇒ grant + AttestationRef);
+  `TestNormalCapabilityUnchanged` asserts off-by-default backward compatibility;
+  `TestReasonRegistryCount` pins the registry at 26 codes; `sdk` adds
+  `TestStatementAttesterRoundTrip`.
 
 ## Build / test
 
@@ -88,20 +106,24 @@ exactly:
 - `argument-binding.json` — `argument_hash`, tamper ⇒ different hash
 - `grant-rules.json` — every grant verdict + reason code
 - `taint.json` — propagation, authority, and data-flow rules
-- `reason-codes.json` — the normative reason-code registry (§23)
+- `reason-codes.json` — the normative reason-code registry (§23; 26 codes)
 - `task-rules.json` — task lifecycle verdicts (§21)
 - `delegation.json` — OBO chain, credential audience, attenuation (§26)
+- `environment-attestation.json` — environment-attestation verdicts (§27)
 
 ## Note on verification
 
 > This implementation — including the 2026-06-13 additions (§21 tasks, §22
 > interface capabilities, §23 reason-code registry, §26 multi-provider OBO
-> delegation) — was authored **without a local Go toolchain available**, so
+> delegation, §27 optional environment attestation) — was authored **without a
+> local Go toolchain available**, so
 > `go build` / `go vet` / `go test` were **not run by the author**. The code targets
 > Go 1.22 and the standard library only (no module downloads required). CI and
 > maintainers **should** run the three commands above to confirm it compiles, vets
 > clean, and passes all conformance vectors before relying on it. The logic mirrors
 > the published ground-truth in `conformance/` and the schemas in `vcp/schemas/`.
 > The new vectors are verified in CI via `go test ./...` (the
-> `TestReasonCodeRegistry`, `TestTaskRulesVector`, `TestDelegationVector`,
-> `TestInterfaceArtifactSwap`, and `TestFanoutScenario` cases).
+> `TestReasonCodeRegistry`, `TestReasonRegistryCount`, `TestTaskRulesVector`,
+> `TestDelegationVector`, `TestInterfaceArtifactSwap`, `TestFanoutScenario`,
+> `TestEnvironmentAttestationVector`, `TestSecurityTest19UnattestedProvider`,
+> `TestNormalCapabilityUnchanged`, and `TestStatementAttesterRoundTrip` cases).

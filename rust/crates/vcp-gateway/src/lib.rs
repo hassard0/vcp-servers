@@ -17,6 +17,7 @@
 pub mod attestation;
 pub mod audit;
 pub mod delegation;
+pub mod env_attestation;
 pub mod grant;
 pub mod interface;
 pub mod invoke;
@@ -27,12 +28,20 @@ pub mod taint;
 pub mod verify;
 
 pub use attestation::{verify_attestation, Attestation, AttestedResult, AttestationError};
-pub use audit::{audit_event, upstream_audit_event, AuditEvent, UpstreamAudit};
+pub use audit::{
+    attested_audit_event, audit_event, upstream_audit_event, AuditEvent, UpstreamAudit,
+};
 pub use delegation::{
     check_attenuation, check_grant_audience, ActorClaim, DelegationChain, DelegationHop,
     ExchangedCredential, MockTokenExchangeBroker, TokenExchange, TokenExchangeBroker,
 };
-pub use grant::{mint_grant, verify_grant, Attempt, Decision, Grant, MintParams};
+pub use env_attestation::{
+    verify_environment_attestation, verify_signed_environment_attestation,
+};
+pub use grant::{
+    mint_grant, mint_grant_gated, verify_grant, AttestationRef, Attempt, Decision, Grant,
+    MintParams,
+};
 pub use interface::{InterfaceBlock, InterfaceError};
 pub use invoke::{invoke, InvokeError, Provider};
 pub use policy::{

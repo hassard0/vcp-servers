@@ -63,6 +63,7 @@ pub fn bridge_mcp_tool(provider: &str, tool: &McpTool, signer: &dyn Signer) -> B
         class: "write-irreversible".to_string(),
         external_side_effect: true,
         requires_user_approval: Some(true),
+        requires_attestation: None,
         compensating_action: None,
         may_send_to: None,
         may_read_from: None,

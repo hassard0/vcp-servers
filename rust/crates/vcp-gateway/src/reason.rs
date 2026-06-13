@@ -50,6 +50,7 @@ pub enum ReasonCode {
     AdditionalProperty,
     SandboxViolation,
     AttestationInvalid,
+    AttestationRequired,
     ReplayEvidenceMissing,
     TaskExpired,
     SubjectMismatch,
@@ -60,7 +61,7 @@ pub enum ReasonCode {
 impl ReasonCode {
     /// Every variant, in registry order. Used by conformance to assert complete
     /// coverage of `reason-codes.json`.
-    pub const ALL: [ReasonCode; 25] = [
+    pub const ALL: [ReasonCode; 26] = [
         ReasonCode::Ok,
         ReasonCode::AllowedWithConstraints,
         ReasonCode::ApprovalRequired,
@@ -81,6 +82,7 @@ impl ReasonCode {
         ReasonCode::AdditionalProperty,
         ReasonCode::SandboxViolation,
         ReasonCode::AttestationInvalid,
+        ReasonCode::AttestationRequired,
         ReasonCode::ReplayEvidenceMissing,
         ReasonCode::TaskExpired,
         ReasonCode::SubjectMismatch,
@@ -111,6 +113,7 @@ impl ReasonCode {
             ReasonCode::AdditionalProperty => "ADDITIONAL_PROPERTY",
             ReasonCode::SandboxViolation => "SANDBOX_VIOLATION",
             ReasonCode::AttestationInvalid => "ATTESTATION_INVALID",
+            ReasonCode::AttestationRequired => "ATTESTATION_REQUIRED",
             ReasonCode::ReplayEvidenceMissing => "REPLAY_EVIDENCE_MISSING",
             ReasonCode::TaskExpired => "TASK_EXPIRED",
             ReasonCode::SubjectMismatch => "SUBJECT_MISMATCH",

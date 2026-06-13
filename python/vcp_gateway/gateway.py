@@ -24,6 +24,7 @@ from vcp_sdk.identity import argument_hash as _argument_hash
 from vcp_sdk.signing import Signer, default_signer
 
 from . import taint
+from .attestation import verify_environment_attestation
 from .audit import AuditLog, audit_event
 from .grants import mint_grant, parse_rfc3339, verify_grant
 from .policy import DefaultPolicy, PolicyAuthority, make_policy_request
@@ -109,10 +110,15 @@ class Gateway:
         signer: Optional[Signer] = None,
         trusted_issuers: Optional[set[str]] = None,
         audit_log: Optional[AuditLog] = None,
+        trusted_build_digests: Optional[set[str]] = None,
     ) -> None:
         self.policy = policy or DefaultPolicy()
         self.signer = signer or default_signer()
         self.trusted_issuers = trusted_issuers
+        # The §27 environment-attestation trust set. Only consulted for a
+        # capability whose effects.requires_attestation is true; absent/empty is
+        # fine for the common path (attestation off by default = zero friction).
+        self.trusted_build_digests = trusted_build_digests or set()
         # NB: an empty AuditLog is falsy (``__len__`` == 0), so ``or`` would
         # silently discard a caller-supplied empty log. Test for None explicitly.
         self.audit = audit_log if audit_log is not None else AuditLog()
@@ -134,6 +140,8 @@ class Gateway:
         host: Optional[str] = None,
         now: Optional[datetime] = None,
         dry_run: bool = False,
+        environment_statement: Optional[Mapping[str, Any]] = None,
+        challenge_nonce: Optional[str] = None,
     ) -> dict:
         """Run one capability call end to end. Raises GatewayError on rejection."""
         now = now or datetime.now(timezone.utc)
@@ -201,6 +209,57 @@ class Gateway:
         max_calls = int(constraints.get("max_calls", 1))
         expires_at = now + timedelta(seconds=expires_in)
 
+        # 3b. Environment attestation gate (§27). OFF BY DEFAULT: only a
+        #     capability whose effects.requires_attestation is true (or an
+        #     ``attest`` policy obligation) attests. Absent/false ⇒ zero friction,
+        #     the common path is unchanged. On failure the Gateway denies and
+        #     mints NO grant (§27.4.3, fail closed); on success it records the
+        #     result by reference (§27.2/§27.4.4).
+        requires_attestation = bool(
+            cap["effects"].get("requires_attestation", False)
+            or "attest" in decision.get("obligations", [])
+        )
+        attestation_ref: Optional[dict] = None
+        if requires_attestation:
+            att_verdict = verify_environment_attestation(
+                environment_statement,
+                requires_attestation=True,
+                challenge_nonce=challenge_nonce or "",
+                now=now,
+                trusted_build_digests=self.trusted_build_digests,
+            )
+            if att_verdict["decision"] != "allow":
+                reason = att_verdict["reason_code"]
+                self.audit.emit(
+                    audit_event(
+                        event="vcp.attestation.rejected",
+                        trace_id=trace_id,
+                        subject=subject,
+                        capability_id=capability_id,
+                        decision="deny",
+                        reason_code=reason,
+                        effect=effect,
+                        plan_hash=plan_hash,
+                        argument_hash=arg_hash,
+                        model=model,
+                        host=host,
+                        signer=self.signer,
+                    )
+                )
+                raise GatewayError(reason, "environment attestation failed")
+            # Reference-many: carry only a small ref (id + bound nonce), never
+            # the full evidence, per call (§27.2).
+            attestation_ref = {
+                "result": "verified",
+                "nonce": challenge_nonce or "",
+                "subject_role": str(
+                    (environment_statement or {}).get("subject_role", "")
+                ),
+                "build_digest": str(
+                    (environment_statement or {}).get("build_digest", "")
+                ),
+            }
+
         # 4. Mint a single-use, proof-bound grant (§7).
         grant = mint_grant(
             subject=subject,
@@ -214,7 +273,9 @@ class Gateway:
             network=cap.get("sandbox", {}).get("network", []),
             resource_scope=constraints.get("resource_scope", []),
             signer=self.signer,
+            attestation_ref=attestation_ref,
         )
+        # §27.4.4: record the attestation result by reference in the audit event.
         self.audit.emit(
             audit_event(
                 event="vcp.grant.minted",
@@ -228,6 +289,7 @@ class Gateway:
                 argument_hash=arg_hash,
                 model=model,
                 host=host,
+                attestation_ref=attestation_ref,
                 signer=self.signer,
             )
         )

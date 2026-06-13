@@ -87,6 +87,24 @@ type InvokeParams struct {
 	// PoPThumbprint is the holder's proof-of-possession key thumbprint (jkt).
 	PoPThumbprint string
 
+	// --- OPTIONAL environment attestation (spec §27; off by default) ---
+	// EnvironmentStatement is the actor's signed environment statement, or nil if
+	// none was presented. It is consulted ONLY when the capability's
+	// effects.requires_attestation is true (§27.1); when attestation is not required
+	// these fields are ignored and behavior is unchanged.
+	EnvironmentStatement *EnvironmentStatement
+	// ChallengeNonce is the fresh Gateway-issued nonce the statement MUST be bound
+	// to (§27.4 step 1). Required only when the capability requires attestation.
+	ChallengeNonce string
+	// TrustedBuildDigests is the trust set of acceptable build_digest values
+	// (§27.4 step 2). Used only when the capability requires attestation.
+	TrustedBuildDigests []string
+	// AttesterVerifier verifies the environment statement's signature (§27.4 step
+	// 2). Optional: when nil, the signature is not cryptographically checked here
+	// (the nonce/build/expiry appraisal still runs); when set, a bad signature is
+	// ATTESTATION_INVALID. A real deployment supplies the actor's public key.
+	AttesterVerifier sdk.Verifier
+
 	// delegationChain and tokenExchange carry the multi-provider on-behalf-of
 	// bindings (spec §26). They are unexported and set only by InvokeOBO; a plain
 	// Invoke leaves them nil/empty and behaves exactly as before.
@@ -162,6 +180,45 @@ func (g *Gateway) Invoke(p Provider, in InvokeParams) (InvokeResult, error) {
 		return InvokeResult{Decision: decision.Decision, ReasonCode: decision.ReasonCode}, nil
 	}
 
+	// 3b. OPTIONAL environment attestation (spec §27). Off by default: only
+	// capabilities whose effects.requires_attestation is true gate grant minting on
+	// a verified actor environment statement (§27.1). Absent/false ⇒ unchanged.
+	requiresAttestation := manifestRequiresAttestation(in.Manifest)
+	var attestRef *AttestationRef
+	if requiresAttestation {
+		// Signature check first when a verifier is configured (§27.4 step 2). A
+		// present-but-badly-signed statement is ATTESTATION_INVALID; a missing
+		// statement falls through to VerifyEnvironmentAttestation as
+		// ATTESTATION_REQUIRED.
+		if in.EnvironmentStatement != nil && in.AttesterVerifier != nil {
+			ok, verr := in.EnvironmentStatement.VerifyEnvironmentSignature(in.AttesterVerifier)
+			if verr != nil || !ok {
+				g.emit(auditDeny("vcp.attestation.rejected", in, capabilityID, planHash, DecisionDeny, ReasonAttestationInvalid, now).withArg(argHash))
+				return InvokeResult{Decision: DecisionDeny, ReasonCode: ReasonAttestationInvalid}, nil
+			}
+		}
+		attDecision, attReason := VerifyEnvironmentAttestation(
+			in.EnvironmentStatement,
+			true,
+			in.ChallengeNonce,
+			now,
+			in.TrustedBuildDigests,
+		)
+		if !attDecision.Allowed() {
+			// Failure mints no grant (spec §19, §27.4 step 3).
+			g.emit(auditDeny("vcp.attestation.rejected", in, capabilityID, planHash, DecisionDeny, attReason, now).withArg(argHash))
+			return InvokeResult{Decision: DecisionDeny, ReasonCode: attReason}, nil
+		}
+		// Record the verified attestation by reference (§27.2, §27.4 step 4).
+		stmt := in.EnvironmentStatement
+		attestRef = &AttestationRef{
+			ID:          "att_" + stmt.Nonce,
+			Nonce:       stmt.Nonce,
+			SubjectRole: stmt.SubjectRole,
+			BuildDigest: stmt.BuildDigest,
+		}
+	}
+
 	// 4. Mint grant scoped by the policy constraints.
 	ttl := 300
 	var network, scope []string
@@ -189,6 +246,7 @@ func (g *Gateway) Invoke(p Provider, in InvokeParams) (InvokeResult, error) {
 		JKT:             in.PoPThumbprint,
 		DelegationChain: in.delegationChain,
 		TokenExchange:   in.tokenExchange,
+		AttestationRef:  attestRef,
 	})
 	if err != nil {
 		return InvokeResult{}, fmt.Errorf("invoke: mint grant: %w", err)
@@ -259,6 +317,11 @@ func (g *Gateway) Invoke(p Provider, in InvokeParams) (InvokeResult, error) {
 	if in.tokenExchange != nil {
 		ev.CredentialAudience = in.tokenExchange.Audience
 		ev.CredentialJKT = in.tokenExchange.CredentialJKT
+	}
+	// Environment attestation: record the verified result by reference (spec §27.4
+	// step 4). Present only when the capability required attestation.
+	if attestRef != nil {
+		ev.AttestationRef = attestRef
 	}
 	g.emit(ev)
 

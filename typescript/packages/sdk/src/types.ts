@@ -46,6 +46,24 @@ export interface Effects {
   may_send_to?: string[];
   may_read_from?: string[];
   may_write_to?: string[];
+  /**
+   * When true, the Gateway MUST verify a valid environment attestation before
+   * minting a grant for this capability (SPEC §27). Off by default — absent or
+   * false means the common path adds no attestation friction.
+   */
+  requires_attestation?: boolean;
+}
+
+/**
+ * A grant/audit-event reference to a verified environment attestation (§27.2).
+ * Full evidence is attested once and referenced many times; only this small
+ * reference travels with the grant and the audit event.
+ */
+export interface GrantAttestationRef {
+  id: string;
+  tier: "statement" | "tee";
+  nonce: string;
+  subject_role: "gateway" | "provider" | "agent";
 }
 
 export interface Determinism {
@@ -179,6 +197,8 @@ export interface Grant {
   delegation_chain?: DelegationChain;
   /** Per-provider exchanged-credential reference (§26.1). */
   token_exchange?: TokenExchangeRef;
+  /** Reference to the verified environment attestation that gated this grant (§27). */
+  attestation_ref?: GrantAttestationRef;
   gateway_signature: Signature;
 }
 
@@ -263,6 +283,8 @@ export interface AuditEvent {
   credential_audience?: string;
   /** Thumbprint of the exchanged credential, by reference (§26.5). */
   credential_jkt?: string;
+  /** Reference to the verified environment attestation, recorded by reference (§27.4 step 4). */
+  attestation_ref?: GrantAttestationRef & { result: "verified" };
   timestamp: string;
   signature?: Signature;
 }

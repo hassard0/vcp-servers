@@ -3,6 +3,7 @@ export * from "./grant.ts";
 export * from "./taint.ts";
 export * from "./policy.ts";
 export * from "./attestation.ts";
+export * from "./environment-attestation.ts";
 export * from "./invoke.ts";
 export * from "./task.ts";
 export * from "./delegation.ts";

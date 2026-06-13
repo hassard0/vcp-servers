@@ -27,6 +27,17 @@ pub struct GatewaySignature {
     pub value: String,
 }
 
+/// A small by-reference handle to a verified environment attestation (§27.2):
+/// attest-once / reference-many. Per-call envelopes (and the grant) carry only
+/// this ref — an id plus the nonce it was bound to — never the full evidence.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AttestationRef {
+    /// Identifies the cached verified statement (e.g. issuer + boot_epoch).
+    pub id: String,
+    /// The Gateway challenge nonce the statement was bound to (§27.2).
+    pub nonce: String,
+}
+
 /// A single-use, proof-bound authorization token (§7).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Grant {
@@ -56,6 +67,11 @@ pub struct Grant {
     pub token_exchange: Option<TokenExchange>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub attenuated_from: Option<String>,
+    /// The verified environment-attestation reference (§27.2), present only when
+    /// the capability's `effects.requires_attestation` gated this grant. Absent on
+    /// the common (no-attestation) path so existing grants are unchanged.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub attestation_ref: Option<AttestationRef>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub gateway_signature: Option<GatewaySignature>,
 }
@@ -100,6 +116,9 @@ pub struct MintParams {
     pub delegation_chain: Option<DelegationChain>,
     /// The per-provider token-exchange binding to record (§26.1), if any.
     pub token_exchange: Option<TokenExchange>,
+    /// The verified environment-attestation reference to attach (§27.2), if this
+    /// grant was gated on attestation.
+    pub attestation_ref: Option<AttestationRef>,
 }
 
 impl Default for MintParams {
@@ -118,6 +137,7 @@ impl Default for MintParams {
             holder_jkt: String::new(),
             delegation_chain: None,
             token_exchange: None,
+            attestation_ref: None,
         }
     }
 }
@@ -146,6 +166,7 @@ pub fn mint_grant(grant_id: &str, params: MintParams, gateway_signer: &dyn Signe
         delegation_chain: params.delegation_chain,
         token_exchange: params.token_exchange,
         attenuated_from: None,
+        attestation_ref: params.attestation_ref,
         gateway_signature: None,
     };
     let value = gateway_signer.sign(grant.signing_bytes().as_bytes());
@@ -154,6 +175,59 @@ pub fn mint_grant(grant_id: &str, params: MintParams, gateway_signer: &dyn Signe
         value,
     });
     grant
+}
+
+/// Mint a grant **only if** the environment-attestation gate passes (§27.4).
+///
+/// `requires` mirrors the capability's `effects.requires_attestation`. When it is
+/// false (the common, zero-friction path) the grant is minted unchanged — no
+/// `attestation_ref` is attached and the statement is ignored. When it is true the
+/// statement is appraised (freshness nonce, trusted build, expiry, signature, §27.4):
+/// on failure **no grant is minted** and the `(Decision::Deny, reason)` carries
+/// `ATTESTATION_REQUIRED` (missing) or `ATTESTATION_INVALID` (bad); on success the
+/// grant is minted with `attestation_ref` attached (§27.2) and `(Allow, OK)`.
+///
+/// Returns the verdict and, on allow, the minted [`Grant`]. Fail-closed: any deny
+/// yields `None`.
+#[allow(clippy::too_many_arguments)]
+pub fn mint_grant_gated(
+    grant_id: &str,
+    mut params: MintParams,
+    gateway_signer: &dyn Signer,
+    statement: Option<&vcp_sdk::attestation::EnvironmentStatement>,
+    requires: bool,
+    challenge_nonce: &str,
+    now: OffsetDateTime,
+    trusted_build_digests: &[String],
+    statement_verifier: &dyn Verifier,
+) -> (Decision, &'static str, Option<Grant>) {
+    let (decision, reason) = crate::env_attestation::verify_signed_environment_attestation(
+        statement,
+        requires,
+        challenge_nonce,
+        now,
+        trusted_build_digests,
+        statement_verifier,
+    );
+
+    if decision == Decision::Deny {
+        // §27.4 step 3 / §19: grant minting fails closed — no grant.
+        return (decision, reason.as_str(), None);
+    }
+
+    // On success, attach the attestation reference by value (§27.2) only when the
+    // capability actually required attestation; the common path stays unchanged.
+    if requires {
+        if let Some(stmt) = statement {
+            params.attestation_ref = Some(AttestationRef {
+                id: format!("{}#{}", stmt.issuer, stmt.boot_epoch),
+                nonce: stmt.nonce.clone(),
+            });
+        }
+    }
+
+    let grant = mint_grant(grant_id, params, gateway_signer);
+    (Decision::Allow, reason.as_str(), Some(grant))
 }
 
 /// A capability-invocation attempt to validate against a grant.

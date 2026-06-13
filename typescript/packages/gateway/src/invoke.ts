@@ -9,10 +9,15 @@ import {
   type ResultEnvelope,
   type DataFlow,
   type AuditEvent,
+  type GrantAttestationRef,
 } from "@vcp/sdk";
 import { verifyManifest } from "./verify-manifest.ts";
 import { mintGrant, verifyGrant } from "./grant.ts";
 import { verifyAttestation, signAttestation, auditEvent } from "./attestation.ts";
+import {
+  verifyEnvironmentAttestation,
+  type VerifiableStatement,
+} from "./environment-attestation.ts";
 import type { PolicyAuthority } from "./policy.ts";
 
 /** A capability provider executes within the bounds of a grant (SPEC §1.1). */
@@ -84,6 +89,14 @@ export interface InvokeContext {
   user_approved?: boolean;
   /** Holder proof-of-possession thumbprint (DPoP-style jkt). */
   jkt: string;
+  /**
+   * Optional environment attestation for capabilities whose effects set
+   * requires_attestation=true (§27). Ignored when the capability does not
+   * require attestation — the common path adds no friction.
+   */
+  environment_statement?: VerifiableStatement | null;
+  /** The fresh challenge nonce the Gateway issued for this attestation (§27.4). */
+  challenge_nonce?: string;
   now?: Date;
 }
 
@@ -95,6 +108,10 @@ export interface InvokeDeps {
   /** Gateway's own signing key (mints grants, signs audit). */
   gatewaySigner: Signer;
   provider: Provider;
+  /** build_digest values trusted for environment attestation (§27.4). */
+  trustedBuildDigests?: string[];
+  /** Public key trusted to have signed the environment statement, if verifying signatures (§27.4). */
+  attesterPublicKey?: KeyObject;
 }
 
 export interface InvokeOutcome {
@@ -172,7 +189,35 @@ export async function invoke(ctx: InvokeContext, deps: InvokeDeps): Promise<Invo
     return deny(decision.reason_code ?? "POLICY_DENIED");
   }
 
-  // 3. Mint a single-use grant bound to this call (§7).
+  // 2b. Environment attestation gate (§27). Only capabilities whose effects set
+  // requires_attestation=true are gated; otherwise this is a no-op (zero
+  // friction, §27.1). On failure the Gateway mints NO grant (§27.4 step 3).
+  const requiresAttestation =
+    ctx.manifest.capability.effects.requires_attestation === true;
+  let attestationRef: GrantAttestationRef | undefined;
+  if (requiresAttestation) {
+    const ea = verifyEnvironmentAttestation(ctx.environment_statement ?? null, {
+      requiresAttestation: true,
+      challengeNonce: ctx.challenge_nonce ?? "",
+      now,
+      trustedBuildDigests: deps.trustedBuildDigests ?? [],
+      attesterPublicKey: deps.attesterPublicKey,
+    });
+    if (ea.decision !== "allow") {
+      // Mint no grant; deny with the attestation reason_code (§27.4 step 3).
+      return deny(ea.reason_code);
+    }
+    const stmt = ctx.environment_statement!;
+    attestationRef = {
+      id: "attref_" + randomUUID().slice(0, 8),
+      tier: stmt.tier,
+      nonce: stmt.nonce,
+      subject_role: stmt.subject_role,
+    };
+  }
+
+  // 3. Mint a single-use grant bound to this call (§7). When attestation gated
+  // this grant, attach the attestation_ref (§27.2).
   const expiresInSec = decision.constraints?.expires_in_seconds ?? 300;
   const grant = await mintGrant(
     {
@@ -186,6 +231,7 @@ export async function invoke(ctx: InvokeContext, deps: InvokeDeps): Promise<Invo
       network: ctx.manifest.capability.sandbox.network,
       resource_scope: decision.constraints?.resource_scope,
       proof_of_possession: { alg: "Ed25519", jkt: ctx.jkt },
+      ...(attestationRef ? { attestation_ref: attestationRef } : {}),
     },
     deps.gatewaySigner,
   );
@@ -202,6 +248,9 @@ export async function invoke(ctx: InvokeContext, deps: InvokeDeps): Promise<Invo
         decision: "allow",
         reason_code: decision.reason_code,
         effect,
+        ...(attestationRef
+          ? { attestation_ref: { ...attestationRef, result: "verified" as const } }
+          : {}),
         timestamp: now.toISOString(),
       },
       deps.gatewaySigner,

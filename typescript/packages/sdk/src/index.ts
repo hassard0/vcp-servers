@@ -6,5 +6,6 @@ export * from "./manifest.ts";
 export * from "./plan.ts";
 export * from "./bridge.ts";
 export * from "./reason-codes.ts";
+export * from "./attestation.ts";
 export * from "./task.ts";
 export * from "./delegation.ts";

@@ -11,6 +11,13 @@ Reproduces the conformance vectors:
 
 from __future__ import annotations
 
+from .attestation import (
+    ATTESTABLE_ROLES,
+    ATTESTATION_KIND,
+    Attester,
+    EnvironmentStatement,
+    StatementAttester,
+)
 from .bridge import bridge_mcp_tool, compile_affordance, observation_changed
 from .canonical import canonical_json, constant_time_equals, hash, sha256_hex
 from .identity import (
@@ -81,4 +88,10 @@ __all__ = [
     "bridge_mcp_tool",
     "compile_affordance",
     "observation_changed",
+    # environment attestation (§27)
+    "ATTESTATION_KIND",
+    "ATTESTABLE_ROLES",
+    "EnvironmentStatement",
+    "Attester",
+    "StatementAttester",
 ]
