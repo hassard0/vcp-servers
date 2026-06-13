@@ -1,0 +1,130 @@
+{
+  "description": "Normative reason-code registry (SPEC §23). Implementations MUST expose every `code` as a stable constant. `category` is allow|challenge|deny; `remediable` deny/challenge codes SHOULD ship remediation.",
+  "codes": [
+    {
+      "code": "OK",
+      "category": "allow",
+      "remediable": false
+    },
+    {
+      "code": "ALLOWED_WITH_CONSTRAINTS",
+      "category": "allow",
+      "remediable": false
+    },
+    {
+      "code": "APPROVAL_REQUIRED",
+      "category": "challenge",
+      "remediable": true
+    },
+    {
+      "code": "MANIFEST_UNVERIFIED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "ISSUER_UNTRUSTED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "CAPABILITY_REVOKED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "AUDIENCE_MISMATCH",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "ARGUMENT_HASH_MISMATCH",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "PLAN_NOT_APPROVED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "MAX_CALLS_EXCEEDED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "GRANT_EXPIRED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "GRANT_REVOKED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "CREDENTIAL_AUDIENCE_MISMATCH",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "BUDGET_EXCEEDED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "DATA_FLOW_FORBIDDEN",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "AUTHORITY_FROM_TAINTED_DATA",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "SCHEMA_VALIDATION_FAILED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "ADDITIONAL_PROPERTY",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "SANDBOX_VIOLATION",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "ATTESTATION_INVALID",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "REPLAY_EVIDENCE_MISSING",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "TASK_EXPIRED",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "SUBJECT_MISMATCH",
+      "category": "deny",
+      "remediable": true
+    },
+    {
+      "code": "INPUT_REQUIRED",
+      "category": "challenge",
+      "remediable": true
+    },
+    {
+      "code": "INTERFACE_HASH_MISMATCH",
+      "category": "deny",
+      "remediable": true
+    }
+  ]
+}

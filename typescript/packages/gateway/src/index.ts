@@ -4,3 +4,6 @@ export * from "./taint.ts";
 export * from "./policy.ts";
 export * from "./attestation.ts";
 export * from "./invoke.ts";
+export * from "./task.ts";
+export * from "./delegation.ts";
+export * from "./interface.ts";

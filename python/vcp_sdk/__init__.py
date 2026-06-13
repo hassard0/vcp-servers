@@ -23,6 +23,8 @@ from .identity import (
 )
 from .manifest import build_contract, build_manifest
 from .plan import plan_hash, propose_plan
+from . import reason_codes
+from .reason_codes import Category, ReasonCode, ReasonCodeSpec, REGISTRY as REASON_CODE_REGISTRY
 from .signing import (
     CRYPTOGRAPHY_AVAILABLE,
     Ed25519Signer,
@@ -58,6 +60,12 @@ __all__ = [
     # plan
     "propose_plan",
     "plan_hash",
+    # reason codes (§23)
+    "reason_codes",
+    "Category",
+    "ReasonCode",
+    "ReasonCodeSpec",
+    "REASON_CODE_REGISTRY",
     # signing
     "Signer",
     "Verifier",

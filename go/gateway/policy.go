@@ -82,11 +82,11 @@ type PolicyAuthority interface {
 	Decide(req PolicyRequest) Decision
 }
 
-// Reason codes used by DefaultPolicy.
+// Reason codes used by DefaultPolicy. ReasonAllowedWithConstraints and
+// ReasonApprovalRequired are defined in the normative registry (reasoncodes.go,
+// spec §23); ReasonAllowed is a non-registry convenience used only internally.
 const (
-	ReasonAllowed               = "ALLOWED"
-	ReasonAllowedWithConstraints = "ALLOWED_WITH_CONSTRAINTS"
-	ReasonApprovalRequired      = "APPROVAL_REQUIRED"
+	ReasonAllowed = "ALLOWED"
 )
 
 // DefaultPolicy is a taint/data-flow-aware Policy Authority that reproduces the

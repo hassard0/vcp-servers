@@ -268,6 +268,8 @@ fn calendar_scenario_end_to_end() {
             resource_scope: vec!["calendar.events".to_string()],
             budget: None,
             holder_jkt: holder.jkt(),
+            delegation_chain: None,
+            token_exchange: None,
         },
         &gateway,
     );
@@ -305,6 +307,8 @@ fn calendar_scenario_end_to_end() {
             resource_scope: vec!["calendar.events".to_string()],
             budget: None,
             holder_jkt: holder.jkt(),
+            delegation_chain: None,
+            token_exchange: None,
         },
         &gateway,
     );
@@ -361,6 +365,8 @@ fn calendar_scenario_end_to_end() {
             resource_scope: vec![],
             budget: None,
             holder_jkt: holder.jkt(),
+            delegation_chain: None,
+            token_exchange: None,
         },
         &gateway,
     );

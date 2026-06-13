@@ -1,5 +1,7 @@
 // Shared VCP wire types. These mirror the normative schemas in vcp/schemas/*.
 
+import type { DelegationChain, TokenExchangeRef } from "./delegation.ts";
+
 export type EffectClass =
   | "read-only"
   | "propose-only"
@@ -59,6 +61,25 @@ export interface Sandbox {
 }
 
 /**
+ * A content-addressed, signed UI surface shipped by an interface capability
+ * (SPEC §22). The Host verifies content_hash against the rendered bytes and may
+ * only initiate the capability calls named in host_actions.
+ */
+export interface InterfaceBlock {
+  /** Content-addressed UI surface id, e.g. vcp:ui:example.picker@sha256:... */
+  surface: string;
+  /** sha256: hash the Host MUST verify against the bytes it renders. */
+  content_hash: string;
+  render: "html-sandboxed" | string;
+  csp?: Record<string, string[]>;
+  permissions?: string[];
+  /** Allowlist of capability ids a UI-initiated action may call (§22). */
+  host_actions: string[];
+  /** false hides UI-only controls from the Planner entirely (§22). */
+  model_visible?: boolean;
+}
+
+/**
  * The security-relevant subset of a manifest whose hash is the capability
  * identity (SPEC §4). Order of keys here does not matter — canonicalization
  * sorts them — but the field set is normative.
@@ -92,6 +113,8 @@ export interface Capability {
   determinism: Determinism;
   sandbox: Sandbox;
   kind?: CapabilityKind;
+  /** Optional signed, sandboxed UI surface (§22). */
+  interface?: InterfaceBlock;
 }
 
 export interface Manifest {
@@ -152,6 +175,10 @@ export interface Grant {
   budget?: Budget;
   proof_of_possession: ProofOfPossession;
   attenuated_from?: string;
+  /** Ordered OBO delegation chain this grant was minted under (§26.2). */
+  delegation_chain?: DelegationChain;
+  /** Per-provider exchanged-credential reference (§26.1). */
+  token_exchange?: TokenExchangeRef;
   gateway_signature: Signature;
 }
 
@@ -230,6 +257,12 @@ export interface AuditEvent {
   result_hash?: string;
   effect_committed?: boolean;
   budget_spent?: Budget;
+  /** Full OBO delegation chain for this upstream call (§26.2, §26.5). */
+  delegation_chain?: DelegationChain;
+  /** Audience of the exchanged credential, by reference (§26.5). */
+  credential_audience?: string;
+  /** Thumbprint of the exchanged credential, by reference (§26.5). */
+  credential_jkt?: string;
   timestamp: string;
   signature?: Signature;
 }

@@ -7,6 +7,8 @@ import {
   type EffectClass,
   type Budget,
   type ProofOfPossession,
+  type DelegationChain,
+  type TokenExchangeRef,
 } from "@vcp/sdk";
 import { constantTimeStringEq } from "./verify-manifest.ts";
 
@@ -25,6 +27,10 @@ export interface MintGrantInput {
   budget?: Budget;
   proof_of_possession: ProofOfPossession;
   attenuated_from?: string;
+  /** Ordered OBO delegation chain (§26.2). */
+  delegation_chain?: DelegationChain;
+  /** Per-provider exchanged-credential reference (§26.1). */
+  token_exchange?: TokenExchangeRef;
 }
 
 /**
@@ -48,6 +54,8 @@ export async function mintGrant(input: MintGrantInput, signer: Signer): Promise<
     ...(input.budget ? { budget: input.budget } : {}),
     proof_of_possession: input.proof_of_possession,
     ...(input.attenuated_from ? { attenuated_from: input.attenuated_from } : {}),
+    ...(input.delegation_chain ? { delegation_chain: input.delegation_chain } : {}),
+    ...(input.token_exchange ? { token_exchange: input.token_exchange } : {}),
   };
   const value = await signer.sign(grantSigningBytes(unsigned));
   return { ...unsigned, gateway_signature: { alg: signer.alg, value } };

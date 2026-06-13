@@ -86,6 +86,12 @@ type InvokeParams struct {
 	Now time.Time
 	// PoPThumbprint is the holder's proof-of-possession key thumbprint (jkt).
 	PoPThumbprint string
+
+	// delegationChain and tokenExchange carry the multi-provider on-behalf-of
+	// bindings (spec §26). They are unexported and set only by InvokeOBO; a plain
+	// Invoke leaves them nil/empty and behaves exactly as before.
+	delegationChain DelegationChain
+	tokenExchange   *TokenExchange
 }
 
 // InvokeResult is the outcome of Invoke.
@@ -177,10 +183,12 @@ func (g *Gateway) Invoke(p Provider, in InvokeParams) (InvokeResult, error) {
 		AllowedEffect: in.Effect,
 		ExpiresAt:     now.Add(time.Duration(ttl) * time.Second),
 		MaxCalls:      1,
-		Network:       network,
-		ResourceScope: scope,
-		Budget:        budget,
-		JKT:           in.PoPThumbprint,
+		Network:         network,
+		ResourceScope:   scope,
+		Budget:          budget,
+		JKT:             in.PoPThumbprint,
+		DelegationChain: in.delegationChain,
+		TokenExchange:   in.tokenExchange,
 	})
 	if err != nil {
 		return InvokeResult{}, fmt.Errorf("invoke: mint grant: %w", err)
@@ -242,6 +250,16 @@ func (g *Gateway) Invoke(p Provider, in InvokeParams) (InvokeResult, error) {
 		EffectCommitted: &committed,
 		Timestamp:       now.UTC().Format(time.RFC3339),
 	}
+	// Multi-provider OBO: stamp the delegation chain and the exchanged credential's
+	// audience/thumbprint by reference onto the audit event (spec §26.5). The raw
+	// token is never recorded.
+	if len(in.delegationChain) > 0 {
+		ev.DelegationChain = in.delegationChain
+	}
+	if in.tokenExchange != nil {
+		ev.CredentialAudience = in.tokenExchange.Audience
+		ev.CredentialJKT = in.tokenExchange.CredentialJKT
+	}
 	g.emit(ev)
 
 	return InvokeResult{
@@ -254,6 +272,43 @@ func (g *Gateway) Invoke(p Provider, in InvokeParams) (InvokeResult, error) {
 		AttestVerd: &av,
 		Envelope:   &env,
 	}, nil
+}
+
+// OBOContext carries the multi-provider on-behalf-of bindings for one invocation
+// (spec §26): the delegation chain and the per-provider exchanged credential. It is
+// optional; a single-provider invocation uses Invoke (no OBO context).
+type OBOContext struct {
+	// Chain is the ordered OBO delegation chain (spec §26.2).
+	Chain DelegationChain
+	// Credential is the audience-bound exchanged credential for this Provider
+	// (spec §26.1). It is held behind the egress boundary; only its audience and
+	// thumbprint are recorded (by reference) on the grant and audit event.
+	Credential ExchangedCredential
+}
+
+// InvokeOBO runs the full §9 plan/apply flow like Invoke, but additionally threads
+// the multi-provider on-behalf-of context (spec §26): it binds the exchanged
+// credential to the minted grant (audience + actor + thumbprint, never the raw
+// token), records the OBO delegation chain on the grant, and stamps the chain and
+// the exchanged credential's audience/thumbprint (by reference) onto the success
+// audit event (spec §26.5).
+//
+// It reuses Invoke for the core pipeline and then re-binds the OBO metadata onto
+// the result's grant and the emitted audit event so the credential audience and
+// delegation chain are visible to a ledger. Deny paths return Invoke's verdict
+// unchanged.
+func (g *Gateway) InvokeOBO(p Provider, in InvokeParams, obo OBOContext) (InvokeResult, error) {
+	// Stash the OBO context so Invoke can thread it into MintGrant and the audit
+	// event. We pass it via the params extension fields below.
+	in.delegationChain = obo.Chain
+	if obo.Credential.Audience != "" {
+		in.tokenExchange = &TokenExchange{
+			Audience:      obo.Credential.Audience,
+			Actor:         obo.Credential.Actor,
+			CredentialJKT: obo.Credential.JKT(),
+		}
+	}
+	return g.Invoke(p, in)
 }
 
 func (g *Gateway) emit(e AuditEvent) {

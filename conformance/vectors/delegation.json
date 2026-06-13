@@ -1,0 +1,93 @@
+{
+  "description": "On-behalf-of delegation chain construction + per-provider credential binding (§26). chain_cases assert the ordered roles. credential_cases assert an exchanged credential bound to one Provider's audience is rejected elsewhere. attenuation_cases assert authority may narrow but never widen down the chain.",
+  "chain_cases": [
+    {
+      "name": "two-hop",
+      "user": "user:123",
+      "agent": "agent:triage",
+      "gateway": "gateway:edge-1",
+      "provider": "linear",
+      "api": "https://api.linear.app",
+      "expect_chain": [
+        {
+          "role": "authorizer",
+          "id": "user:123"
+        },
+        {
+          "role": "delegate",
+          "id": "agent:triage"
+        },
+        {
+          "role": "enforcer",
+          "id": "gateway:edge-1"
+        },
+        {
+          "role": "executor",
+          "id": "linear"
+        },
+        {
+          "role": "resource",
+          "id": "https://api.linear.app"
+        }
+      ]
+    }
+  ],
+  "credential_cases": [
+    {
+      "name": "credential-bound-to-linear-used-at-linear",
+      "credential_audience": "https://api.linear.app",
+      "presented_at": "https://api.linear.app",
+      "expect": {
+        "decision": "allow",
+        "reason_code": "OK"
+      }
+    },
+    {
+      "name": "credential-bound-to-linear-used-at-slack",
+      "credential_audience": "https://api.linear.app",
+      "presented_at": "https://slack.com/api",
+      "expect": {
+        "decision": "deny",
+        "reason_code": "CREDENTIAL_AUDIENCE_MISMATCH"
+      }
+    },
+    {
+      "name": "grant-for-linear-presented-for-slack-capability",
+      "grant_audience": "vcp:cap:linear.create_issue@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "capability": "vcp:cap:slack.post_message@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "expect": {
+        "decision": "deny",
+        "reason_code": "AUDIENCE_MISMATCH"
+      }
+    }
+  ],
+  "attenuation_cases": [
+    {
+      "name": "narrow-ok",
+      "parent_scope": [
+        "calendar.events",
+        "calendar.freebusy"
+      ],
+      "child_scope": [
+        "calendar.events"
+      ],
+      "expect": {
+        "decision": "allow"
+      }
+    },
+    {
+      "name": "widen-rejected",
+      "parent_scope": [
+        "calendar.events"
+      ],
+      "child_scope": [
+        "calendar.events",
+        "calendar.delete"
+      ],
+      "expect": {
+        "decision": "deny",
+        "reason_code": "AUDIENCE_MISMATCH"
+      }
+    }
+  ]
+}

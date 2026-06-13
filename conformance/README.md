@@ -24,6 +24,9 @@ genuinely fiddly part and is out of scope for v0.1 vectors).
 | `argument-binding.json` | `argument_hash`; tampered args ⇒ different hash | §7, §8 |
 | `grant-rules.json` | grant verdicts: audience, argument, replay (max_calls), expiry | §7 |
 | `taint.json` | label propagation (most-restrictive), authority-from-tainted denial, data-flow blocking | §12 |
+| `reason-codes.json` | the normative reason-code registry every impl must expose | §23 |
+| `delegation.json` | on-behalf-of chain construction + per-provider credential binding + attenuation | §26 |
+| `task-rules.json` | task lifecycle verdicts: owner/subject, expiry, cancel⇒revoke | §21 |
 
 ## What an implementation MUST do
 

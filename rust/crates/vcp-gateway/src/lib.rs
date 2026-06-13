@@ -16,18 +16,29 @@
 
 pub mod attestation;
 pub mod audit;
+pub mod delegation;
 pub mod grant;
+pub mod interface;
 pub mod invoke;
 pub mod policy;
+pub mod reason;
+pub mod task;
 pub mod taint;
 pub mod verify;
 
 pub use attestation::{verify_attestation, Attestation, AttestedResult, AttestationError};
-pub use audit::{audit_event, AuditEvent};
+pub use audit::{audit_event, upstream_audit_event, AuditEvent, UpstreamAudit};
+pub use delegation::{
+    check_attenuation, check_grant_audience, ActorClaim, DelegationChain, DelegationHop,
+    ExchangedCredential, MockTokenExchangeBroker, TokenExchange, TokenExchangeBroker,
+};
 pub use grant::{mint_grant, verify_grant, Attempt, Decision, Grant, MintParams};
+pub use interface::{InterfaceBlock, InterfaceError};
 pub use invoke::{invoke, InvokeError, Provider};
 pub use policy::{
     AuthorityContext, Constraints, DefaultPolicy, PolicyAuthority, PolicyRequest, PolicyResponse,
 };
+pub use reason::{Category, ReasonCode};
+pub use task::{Task, TaskManager, TaskOp, TaskVerdict};
 pub use taint::{check_authority, check_data_flow, propagate, DataFlow, TaintDecision};
 pub use verify::{verify_manifest, VerifyError};

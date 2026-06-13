@@ -11,6 +11,8 @@ use time::OffsetDateTime;
 
 use vcp_sdk::signer::{Signer, Verifier};
 
+use crate::delegation::{DelegationChain, TokenExchange};
+
 /// DPoP-style proof-of-possession binding (§7).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProofOfPossession {
@@ -44,6 +46,14 @@ pub struct Grant {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub budget: Option<Value>,
     pub proof_of_possession: ProofOfPossession,
+    /// The ordered on-behalf-of delegation chain (§26.2). Recorded on every grant
+    /// in a multi-provider fan-out.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub delegation_chain: Option<DelegationChain>,
+    /// The per-provider token-exchange binding (§26.1): audience, actor claim, and
+    /// the exchanged-credential thumbprint (by reference, never the token).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub token_exchange: Option<TokenExchange>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub attenuated_from: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -86,6 +96,30 @@ pub struct MintParams {
     pub budget: Option<Value>,
     /// Thumbprint of the holder's key (proof-of-possession binding).
     pub holder_jkt: String,
+    /// The OBO delegation chain to record on the grant (§26.2), if any.
+    pub delegation_chain: Option<DelegationChain>,
+    /// The per-provider token-exchange binding to record (§26.1), if any.
+    pub token_exchange: Option<TokenExchange>,
+}
+
+impl Default for MintParams {
+    fn default() -> Self {
+        Self {
+            subject: String::new(),
+            audience: String::new(),
+            plan_hash: String::new(),
+            argument_hash: String::new(),
+            allowed_effect: String::new(),
+            expires_at: String::new(),
+            max_calls: 1,
+            network: Vec::new(),
+            resource_scope: Vec::new(),
+            budget: None,
+            holder_jkt: String::new(),
+            delegation_chain: None,
+            token_exchange: None,
+        }
+    }
 }
 
 /// Mint a signed grant (§7). Authority is created here and only here, after a
@@ -109,6 +143,8 @@ pub fn mint_grant(grant_id: &str, params: MintParams, gateway_signer: &dyn Signe
             alg: gateway_signer.alg().to_string(),
             jkt: params.holder_jkt,
         },
+        delegation_chain: params.delegation_chain,
+        token_exchange: params.token_exchange,
         attenuated_from: None,
         gateway_signature: None,
     };

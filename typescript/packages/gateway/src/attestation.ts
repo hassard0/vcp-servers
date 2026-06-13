@@ -9,6 +9,7 @@ import {
   type Signature,
   type EffectClass,
   type Signer,
+  type DelegationChain,
 } from "@vcp/sdk";
 import { constantTimeStringEq } from "./verify-manifest.ts";
 
@@ -98,6 +99,12 @@ export interface AuditEventInput {
   effect?: EffectClass;
   result_hash?: string;
   effect_committed?: boolean;
+  /** Full OBO delegation chain for this upstream call (§26.2, §26.5). */
+  delegation_chain?: DelegationChain;
+  /** Audience of the exchanged credential, by reference (§26.5). */
+  credential_audience?: string;
+  /** Thumbprint of the exchanged credential, by reference (§26.5). */
+  credential_jkt?: string;
   timestamp?: string;
 }
 
@@ -128,6 +135,11 @@ export async function auditEvent(
     ...(input.effect_committed !== undefined
       ? { effect_committed: input.effect_committed }
       : {}),
+    ...(input.delegation_chain ? { delegation_chain: input.delegation_chain } : {}),
+    ...(input.credential_audience
+      ? { credential_audience: input.credential_audience }
+      : {}),
+    ...(input.credential_jkt ? { credential_jkt: input.credential_jkt } : {}),
   };
   if (signer) {
     const value = await signer.sign(signingBytes(evt));

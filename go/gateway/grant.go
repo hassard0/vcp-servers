@@ -26,7 +26,14 @@ type Grant struct {
 	Budget            *Budget            `json:"budget,omitempty"`
 	ProofOfPossession ProofOfPossession  `json:"proof_of_possession"`
 	AttenuatedFrom    string             `json:"attenuated_from,omitempty"`
-	GatewaySignature  *sdk.Signature     `json:"gateway_signature,omitempty"`
+	// DelegationChain is the ordered on-behalf-of chain this grant was minted under
+	// (spec §26.2). Every grant in a multi-provider fan-out records it.
+	DelegationChain DelegationChain `json:"delegation_chain,omitempty"`
+	// TokenExchange records the per-provider exchanged credential this grant is
+	// bound to (spec §26.1, §26.5): the audience, the actor claim, and the
+	// credential thumbprint by reference (never the raw token).
+	TokenExchange    *TokenExchange `json:"token_exchange,omitempty"`
+	GatewaySignature *sdk.Signature `json:"gateway_signature,omitempty"`
 }
 
 // ProofOfPossession is the DPoP-style key binding (spec §7). jkt is the SHA-256
@@ -60,6 +67,10 @@ type MintGrantParams struct {
 	ResourceScope []string
 	Budget        *Budget
 	JKT           string // proof-of-possession key thumbprint
+	// DelegationChain is the OBO chain to record on the grant (spec §26.2).
+	DelegationChain DelegationChain
+	// TokenExchange is the per-provider exchanged-credential binding (spec §26.1).
+	TokenExchange *TokenExchange
 }
 
 // MintGrant constructs and signs a grant bound to audience(capability_id),
@@ -99,6 +110,8 @@ func MintGrant(s sdk.Signer, p MintGrantParams) (Grant, error) {
 			Alg: "Ed25519",
 			Jkt: jkt,
 		},
+		DelegationChain: p.DelegationChain,
+		TokenExchange:   p.TokenExchange,
 	}
 	if s != nil {
 		mp, err := decodeToMap(g)

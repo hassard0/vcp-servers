@@ -18,6 +18,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "demo": "node --experimental-strip-types src/demo.ts",
+    "demo:obo": "node --experimental-strip-types src/demo-obo.ts",
     "test": "node --experimental-strip-types --test \"test/*.test.ts\""
   }
 }

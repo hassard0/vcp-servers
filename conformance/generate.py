@@ -161,6 +161,88 @@ write("taint.json", {
     ],
 })
 
+# ------------------------------------------------------------------ reason-codes
+# The §23 registry. Implementations MUST expose these stable codes.
+REASON_CODES = [
+    ("OK", "allow", False),
+    ("ALLOWED_WITH_CONSTRAINTS", "allow", False),
+    ("APPROVAL_REQUIRED", "challenge", True),
+    ("MANIFEST_UNVERIFIED", "deny", True),
+    ("ISSUER_UNTRUSTED", "deny", True),
+    ("CAPABILITY_REVOKED", "deny", True),
+    ("AUDIENCE_MISMATCH", "deny", True),
+    ("ARGUMENT_HASH_MISMATCH", "deny", True),
+    ("PLAN_NOT_APPROVED", "deny", True),
+    ("MAX_CALLS_EXCEEDED", "deny", True),
+    ("GRANT_EXPIRED", "deny", True),
+    ("GRANT_REVOKED", "deny", True),
+    ("CREDENTIAL_AUDIENCE_MISMATCH", "deny", True),
+    ("BUDGET_EXCEEDED", "deny", True),
+    ("DATA_FLOW_FORBIDDEN", "deny", True),
+    ("AUTHORITY_FROM_TAINTED_DATA", "deny", True),
+    ("SCHEMA_VALIDATION_FAILED", "deny", True),
+    ("ADDITIONAL_PROPERTY", "deny", True),
+    ("SANDBOX_VIOLATION", "deny", True),
+    ("ATTESTATION_INVALID", "deny", True),
+    ("REPLAY_EVIDENCE_MISSING", "deny", True),
+    ("TASK_EXPIRED", "deny", True),
+    ("SUBJECT_MISMATCH", "deny", True),
+    ("INPUT_REQUIRED", "challenge", True),
+    ("INTERFACE_HASH_MISMATCH", "deny", True),
+]
+write("reason-codes.json", {
+    "description": "Normative reason-code registry (SPEC §23). Implementations MUST expose every `code` as a stable constant. `category` is allow|challenge|deny; `remediable` deny/challenge codes SHOULD ship remediation.",
+    "codes": [{"code": c, "category": cat, "remediable": rem} for (c, cat, rem) in REASON_CODES],
+})
+
+# ------------------------------------------------------------------- delegation
+# Multi-provider on-behalf-of (§26). A grant exchanged for Provider A is bound to A's
+# audience and MUST NOT be accepted at Provider B.
+cap_linear = "vcp:cap:linear.create_issue@sha256:" + "1" * 64
+cap_slack = "vcp:cap:slack.post_message@sha256:" + "2" * 64
+write("delegation.json", {
+    "description": "On-behalf-of delegation chain construction + per-provider credential binding (§26). chain_cases assert the ordered roles. credential_cases assert an exchanged credential bound to one Provider's audience is rejected elsewhere. attenuation_cases assert authority may narrow but never widen down the chain.",
+    "chain_cases": [
+        {"name": "two-hop", "user": "user:123", "agent": "agent:triage", "gateway": "gateway:edge-1", "provider": "linear", "api": "https://api.linear.app",
+         "expect_chain": [
+             {"role": "authorizer", "id": "user:123"},
+             {"role": "delegate", "id": "agent:triage"},
+             {"role": "enforcer", "id": "gateway:edge-1"},
+             {"role": "executor", "id": "linear"},
+             {"role": "resource", "id": "https://api.linear.app"}]},
+    ],
+    "credential_cases": [
+        {"name": "credential-bound-to-linear-used-at-linear", "credential_audience": "https://api.linear.app", "presented_at": "https://api.linear.app", "expect": {"decision": "allow", "reason_code": "OK"}},
+        {"name": "credential-bound-to-linear-used-at-slack", "credential_audience": "https://api.linear.app", "presented_at": "https://slack.com/api", "expect": {"decision": "deny", "reason_code": "CREDENTIAL_AUDIENCE_MISMATCH"}},
+        {"name": "grant-for-linear-presented-for-slack-capability", "grant_audience": cap_linear, "capability": cap_slack, "expect": {"decision": "deny", "reason_code": "AUDIENCE_MISMATCH"}},
+    ],
+    "attenuation_cases": [
+        {"name": "narrow-ok", "parent_scope": ["calendar.events", "calendar.freebusy"], "child_scope": ["calendar.events"], "expect": {"decision": "allow"}},
+        {"name": "widen-rejected", "parent_scope": ["calendar.events"], "child_scope": ["calendar.events", "calendar.delete"], "expect": {"decision": "deny", "reason_code": "AUDIENCE_MISMATCH"}},
+    ],
+})
+
+# -------------------------------------------------------------------- task-rules
+# Task lifecycle (§21). A task is a grant-bound, subject-scoped, expiring handle.
+write("task-rules.json", {
+    "description": "Task lifecycle verdicts (§21). A task is bound to its grant and owning subject. now is the evaluation time; the task was created at created_at and expires at expires_at; cancelled toggles whether tasks/cancel has been called.",
+    "task": {
+        "kind": "vcp.task", "task_id": "task_test_0001", "capability_id": cap_id,
+        "grant_id": "grant_test_0001", "subject": "user:123", "status": "running",
+        "created_at": "2026-06-13T16:00:00Z", "expires_at": "2026-06-13T16:30:00Z",
+    },
+    "operations": [
+        {"name": "get-by-owner", "op": "get", "subject": "user:123", "now": "2026-06-13T16:05:00Z", "cancelled": False,
+         "expect": {"decision": "allow", "reason_code": "OK"}},
+        {"name": "get-by-other-subject", "op": "get", "subject": "user:999", "now": "2026-06-13T16:05:00Z", "cancelled": False,
+         "expect": {"decision": "deny", "reason_code": "SUBJECT_MISMATCH"}},
+        {"name": "get-after-expiry", "op": "get", "subject": "user:123", "now": "2026-06-13T16:45:00Z", "cancelled": False,
+         "expect": {"decision": "deny", "reason_code": "TASK_EXPIRED"}},
+        {"name": "invoke-after-cancel", "op": "invoke", "subject": "user:123", "now": "2026-06-13T16:05:00Z", "cancelled": True,
+         "expect": {"decision": "deny", "reason_code": "GRANT_REVOKED"}},
+    ],
+})
+
 print("\nGround-truth values:")
 print("  contract_hash :", ch)
 print("  capability_id :", cap_id)

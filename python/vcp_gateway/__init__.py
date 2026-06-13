@@ -11,9 +11,27 @@ Reproduces the conformance vectors ``grant-rules.json`` and ``taint.json``.
 from __future__ import annotations
 
 from .audit import AuditLog, audit_event
+from .delegation import (
+    ExchangedCredential,
+    MockTokenExchangeBroker,
+    TokenExchangeBroker,
+    attenuate,
+    build_delegation_chain,
+    mint_obo_grant,
+    verify_credential_audience,
+    verify_grant_audience,
+)
 from .gateway import Gateway, GatewayError, InMemoryProvider, Provider
 from .grants import mint_grant, parse_rfc3339, verify_grant
+from .interface import (
+    InterfaceError,
+    check_host_action,
+    content_hash_bytes,
+    effective_csp,
+    verify_interface,
+)
 from .policy import DefaultPolicy, PolicyAuthority, make_policy_request
+from .tasks import Task, TaskError, TaskManager, evaluate_operation
 from .taint import (
     RESTRICTIVENESS_ORDER,
     Decision,
@@ -59,4 +77,24 @@ __all__ = [
     # audit
     "audit_event",
     "AuditLog",
+    # tasks (§21)
+    "Task",
+    "TaskManager",
+    "TaskError",
+    "evaluate_operation",
+    # delegation / OBO (§26)
+    "TokenExchangeBroker",
+    "MockTokenExchangeBroker",
+    "ExchangedCredential",
+    "build_delegation_chain",
+    "mint_obo_grant",
+    "verify_credential_audience",
+    "verify_grant_audience",
+    "attenuate",
+    # interface capability (§22)
+    "verify_interface",
+    "check_host_action",
+    "content_hash_bytes",
+    "effective_csp",
+    "InterfaceError",
 ]

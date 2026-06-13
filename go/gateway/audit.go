@@ -25,8 +25,17 @@ type AuditEvent struct {
 	ResultHash      string         `json:"result_hash,omitempty"`
 	EffectCommitted *bool          `json:"effect_committed,omitempty"`
 	BudgetSpent     *Budget        `json:"budget_spent,omitempty"`
-	Timestamp       string         `json:"timestamp"`
-	Signature       *sdk.Signature `json:"signature,omitempty"`
+	// DelegationChain is the full OBO chain for a multi-provider call (spec §26.5):
+	// who authorized this and on whose behalf it was made.
+	DelegationChain DelegationChain `json:"delegation_chain,omitempty"`
+	// CredentialAudience records the audience/resource indicator of the exchanged
+	// credential BY REFERENCE (spec §26.5); the raw token is never recorded.
+	CredentialAudience string `json:"credential_audience,omitempty"`
+	// CredentialJKT is the exchanged credential's key thumbprint, recorded by
+	// reference alongside the audience (spec §26.5).
+	CredentialJKT string         `json:"credential_jkt,omitempty"`
+	Timestamp     string         `json:"timestamp"`
+	Signature     *sdk.Signature `json:"signature,omitempty"`
 }
 
 // Sign signs the audit event over its canonical form with the signature block

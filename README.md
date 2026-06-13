@@ -18,21 +18,23 @@ pinned in [`SPEC_PIN.json`](./SPEC_PIN.json).
 
 ## Conformance matrix
 
-| Language | SDK | Gateway | Conformance vectors | Local test status |
+| Language | SDK | Gateway + Server | Conformance vectors | Local test status |
 |---|---|---|---|---|
-| **TypeScript** | `typescript/packages/sdk` | `typescript/packages/gateway` | ✅ all 5 | ✅ 18/18 (`node --test`) |
-| **Python** | `python/vcp_sdk` | `python/vcp_gateway` | ✅ all 5 | ✅ 23/23 (`unittest`) |
-| **Rust** | `rust/crates/vcp-sdk` | `rust/crates/vcp-gateway` | ✅ all 5 | ✅ 11/11 (`cargo test`) |
-| **Go** | `go/sdk` | `go/gateway` | ✅ all 5 | ⏳ authored stdlib-only; verified in CI (`go test ./...`) |
+| **TypeScript** | `typescript/packages/sdk` | `typescript/packages/{gateway,server}` | ✅ all 8 | ✅ 39/39 (`node --test`) |
+| **Python** | `python/vcp_sdk` | `python/{vcp_gateway,vcp_server}` | ✅ all 8 | ✅ 51/51 (`unittest`) |
+| **Rust** | `rust/crates/vcp-sdk` | `rust/crates/vcp-gateway` | ✅ all 8 | ✅ 24/24 (`cargo test`) |
+| **Go** | `go/sdk` | `go/gateway` | ✅ all 8 | ⏳ authored stdlib-only; verified in CI (`go test ./...`) |
 
 > The Go reference was written against the spec and vectors but authored on a host
 > without a Go toolchain; it is compiled and tested in CI. See `go/README.md`.
 
-The five conformance vectors every implementation reproduces:
+The eight conformance vectors every implementation reproduces:
 `canonical-hash` (JCS + SHA-256), `capability-identity` (contract hash ⇒ identity,
 mutation ⇒ new identity), `argument-binding` (argument hash), `grant-rules`
-(audience / argument / replay / expiry verdicts), and `taint` (label propagation,
-authority-from-tainted denial, data-flow blocking).
+(audience / argument / replay / expiry verdicts), `taint` (label propagation,
+authority-from-tainted denial, data-flow blocking), `reason-codes` (the §23
+registry), `delegation` (on-behalf-of chain + per-provider credential binding +
+attenuation), and `task-rules` (task lifecycle: subject scope, expiry, cancel⇒revoke).
 
 ## Run the tests
 
@@ -65,6 +67,13 @@ cd go && go test ./...
 - **MCP bridge.** A legacy MCP tool is wrapped with `provenance: "legacy_mcp"`, its
   observed schema/description hash pinned, and its raw description is never passed to
   the model as instruction.
+
+## Runnable demos
+
+| Demo | Command | Shows |
+|---|---|---|
+| §16 calendar | `cd typescript && npm run demo` · `cd python && python -m vcp_server.demo` | plan/apply, dry-run approval, injection contained |
+| §26 multi-provider OBO | `cd typescript && npm run demo:obo` · `cd python && python -m vcp_server.demo_obo` | one approval → fan-out to gmail/linear/slack, per-provider token exchange, delegation-chain audit, blocked `confidential → external` flow |
 
 ## Examples
 

@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc --build",
     "test": "node --experimental-strip-types --test \"packages/sdk/test/*.test.ts\" \"packages/gateway/test/*.test.ts\" \"packages/server/test/*.test.ts\"",
-    "demo": "node --experimental-strip-types packages/server/src/demo.ts"
+    "demo": "node --experimental-strip-types packages/server/src/demo.ts",
+    "demo:obo": "node --experimental-strip-types packages/server/src/demo-obo.ts"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",
