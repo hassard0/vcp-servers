@@ -1,0 +1,98 @@
+{
+  "description": "Taint propagation + authority rules (SPEC §12). Derived data inherits the MOST restrictive source label. authorizes=true means the datum is used to justify/authorize an action; authority from untrusted_* MUST be denied.",
+  "restrictiveness_order_most_to_least": [
+    "secret",
+    "untrusted_tool_result",
+    "untrusted_resource_data",
+    "policy_only",
+    "trusted_manifest_summary",
+    "user_instruction",
+    "developer_instruction",
+    "system_instruction"
+  ],
+  "propagation_cases": [
+    {
+      "name": "user+untrusted",
+      "sources": [
+        "user_instruction",
+        "untrusted_resource_data"
+      ],
+      "expect_label": "untrusted_resource_data"
+    },
+    {
+      "name": "manifest+toolresult",
+      "sources": [
+        "trusted_manifest_summary",
+        "untrusted_tool_result"
+      ],
+      "expect_label": "untrusted_tool_result"
+    },
+    {
+      "name": "all-trusted",
+      "sources": [
+        "system_instruction",
+        "user_instruction"
+      ],
+      "expect_label": "user_instruction"
+    }
+  ],
+  "authority_cases": [
+    {
+      "name": "user-authorizes-ok",
+      "label": "user_instruction",
+      "authorizes": true,
+      "expect": {
+        "decision": "allow"
+      }
+    },
+    {
+      "name": "untrusted-resource-authorizes",
+      "label": "untrusted_resource_data",
+      "authorizes": true,
+      "expect": {
+        "decision": "deny",
+        "reason_code": "AUTHORITY_FROM_TAINTED_DATA"
+      }
+    },
+    {
+      "name": "untrusted-tool-authorizes",
+      "label": "untrusted_tool_result",
+      "authorizes": true,
+      "expect": {
+        "decision": "deny",
+        "reason_code": "AUTHORITY_FROM_TAINTED_DATA"
+      }
+    },
+    {
+      "name": "untrusted-resource-as-data-ok",
+      "label": "untrusted_resource_data",
+      "authorizes": false,
+      "expect": {
+        "decision": "allow"
+      }
+    }
+  ],
+  "dataflow_cases": [
+    {
+      "name": "confidential-to-external-blocked",
+      "from": "email.inbox",
+      "to": "slack.post_message",
+      "classification": "confidential",
+      "sink": "external",
+      "expect": {
+        "decision": "deny",
+        "reason_code": "DATA_FLOW_FORBIDDEN"
+      }
+    },
+    {
+      "name": "confidential-to-calendar-metadata-ok",
+      "from": "email.inbox",
+      "to": "calendar.create_event",
+      "classification": "confidential",
+      "sink": "internal-metadata",
+      "expect": {
+        "decision": "allow"
+      }
+    }
+  ]
+}

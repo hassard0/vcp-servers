@@ -1,0 +1,13 @@
+[package]
+name = "vcp-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "VCP (Verifiable Capability Protocol) reference SDK: JCS canonicalization, content-addressed identity, manifests, Ed25519 signing, plans, and the MCP bridge."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+time = { workspace = true }

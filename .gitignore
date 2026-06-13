@@ -1,0 +1,25 @@
+# Node / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+build/
+
+# Rust
+target/
+Cargo.lock.bak
+
+# Go
+# (stdlib-only module; build outputs)
+/go/bin/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

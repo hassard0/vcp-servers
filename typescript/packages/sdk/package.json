@@ -1,0 +1,18 @@
+{
+  "name": "@vcp/sdk",
+  "version": "0.1.0",
+  "description": "VCP lightweight client/SDK: canonical JSON, capability identity, manifest signing, plans, and the MCP bridge.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --test \"test/*.test.ts\""
+  }
+}

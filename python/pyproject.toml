@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vcp-python"
+version = "0.1.0"
+description = "Python reference implementation of VCP (Verifiable Capability Protocol): SDK + enforcing Gateway."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "VCP contributors" }]
+keywords = ["vcp", "mcp", "capability", "authorization", "zero-trust", "policy"]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Intended Audience :: Developers",
+]
+# No heavy required dependencies: the SDK falls back to a labelled HMAC signer
+# when `cryptography` is absent, and the conformance vectors need no signing.
+dependencies = []
+
+[project.optional-dependencies]
+# Real Ed25519 signing/verification (SPEC §3.4). Recommended in production.
+crypto = ["cryptography>=42"]
+dev = ["cryptography>=42"]
+
+[project.urls]
+Homepage = "https://github.com/hassard0/vcp-servers"
+Specification = "https://github.com/hassard0/vcp"
+
+[tool.setuptools]
+packages = ["vcp_sdk", "vcp_gateway"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]

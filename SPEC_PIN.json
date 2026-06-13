@@ -1,0 +1,11 @@
+{
+  "spec_repo": "https://github.com/hassard0/vcp",
+  "protocol_revision": "2026-06-12",
+  "vcp_version": "0.1",
+  "note": "Reference implementations in this repo target this revision of the VCP specification. The normative spec and JSON Schemas live in the spec repo above; this repo's conformance/ vectors are derived from those schemas.",
+  "ground_truth": {
+    "contract_hash": "sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+    "capability_id": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+    "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d"
+  }
+}

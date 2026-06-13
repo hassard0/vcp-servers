@@ -1,0 +1,62 @@
+{
+  "description": "JCS (RFC 8785) canonicalization + SHA-256. Each implementation MUST reproduce `canonical` and `sha256` from `value`.",
+  "cases": [
+    {
+      "name": "empty-object",
+      "value": {},
+      "canonical": "{}",
+      "sha256": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "name": "key-order",
+      "value": {
+        "b": 1,
+        "a": 2,
+        "c": 3
+      },
+      "canonical": "{\"a\":2,\"b\":1,\"c\":3}",
+      "sha256": "sha256:e145110e712e3ed0a6b233551b27a90aa39b4c93ed67e111ba2002d16e5ed1fa"
+    },
+    {
+      "name": "nested",
+      "value": {
+        "z": {
+          "y": [
+            3,
+            2,
+            1
+          ]
+        },
+        "a": "x"
+      },
+      "canonical": "{\"a\":\"x\",\"z\":{\"y\":[3,2,1]}}",
+      "sha256": "sha256:a910d283db6f12ed49a5a61791f844d588a087acaa39f21fe922da59463a28eb"
+    },
+    {
+      "name": "unicode",
+      "value": {
+        "name": "café",
+        "emoji": "✓"
+      },
+      "canonical": "{\"emoji\":\"✓\",\"name\":\"café\"}",
+      "sha256": "sha256:e0149f208937f5fab349f52d8e76a1bb8957ff641fd7a4702ce3aa008fc44d79"
+    },
+    {
+      "name": "types",
+      "value": {
+        "s": "str",
+        "i": 42,
+        "t": true,
+        "f": false,
+        "n": null,
+        "arr": [
+          1,
+          "two",
+          false
+        ]
+      },
+      "canonical": "{\"arr\":[1,\"two\",false],\"f\":false,\"i\":42,\"n\":null,\"s\":\"str\",\"t\":true}",
+      "sha256": "sha256:78cd5d5ef84470b1b4912998da6510004f558cfb645b8198a5e730cbcb70577e"
+    }
+  ]
+}

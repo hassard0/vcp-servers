@@ -1,0 +1,15 @@
+{
+  "description": "argument_hash = sha256(JCS(arguments)). A grant binds to argument_hash; if the Planner changes any argument the hash no longer matches and the invocation MUST be rejected (ARGUMENT_HASH_MISMATCH).",
+  "arguments": {
+    "title": "Demo with Alex",
+    "start": "2026-06-17T14:00:00-04:00",
+    "end": "2026-06-17T14:30:00-04:00"
+  },
+  "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d",
+  "tampered_arguments": {
+    "title": "Demo with Mallory",
+    "start": "2026-06-17T14:00:00-04:00",
+    "end": "2026-06-17T14:30:00-04:00"
+  },
+  "tampered_argument_hash": "sha256:add219ddd0a381c520ff201aa5237dff79b18ecc7514075cfeca93bc22bef3e3"
+}

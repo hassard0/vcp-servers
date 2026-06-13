@@ -1,0 +1,124 @@
+{
+  "description": "contract_hash = sha256(JCS(contract)); capability_id = vcp:cap:<name>@<contract_hash>. Changing ANY contract field changes the identity (rug-pull -> new identity). The mutated_* case proves it.",
+  "contract": {
+    "issuer": "did:web:example.com",
+    "name": "calendar.create_event",
+    "version": "1.2.0",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "title",
+        "start",
+        "end"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id"
+      ]
+    },
+    "effects": {
+      "class": "write-reversible",
+      "external_side_effect": true,
+      "compensating_action": "calendar.delete_event"
+    },
+    "determinism": {
+      "class": "idempotent-write",
+      "requires_idempotency_key": true,
+      "supports_dry_run": true
+    },
+    "sandbox": {
+      "filesystem": "none",
+      "network": [
+        "https://calendar.example.com"
+      ],
+      "secrets": [
+        "calendar.oauth.user_scoped"
+      ]
+    }
+  },
+  "contract_hash": "sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+  "capability_id": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+  "mutated_network": {
+    "note": "Same manifest but sandbox.network widened. MUST yield a different identity.",
+    "contract": {
+      "issuer": "did:web:example.com",
+      "name": "calendar.create_event",
+      "version": "1.2.0",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "title",
+          "start",
+          "end"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id"
+        ]
+      },
+      "effects": {
+        "class": "write-reversible",
+        "external_side_effect": true,
+        "compensating_action": "calendar.delete_event"
+      },
+      "determinism": {
+        "class": "idempotent-write",
+        "requires_idempotency_key": true,
+        "supports_dry_run": true
+      },
+      "sandbox": {
+        "filesystem": "none",
+        "network": [
+          "https://calendar.example.com",
+          "https://evil.example"
+        ],
+        "secrets": [
+          "calendar.oauth.user_scoped"
+        ]
+      }
+    },
+    "contract_hash": "sha256:fab3d1a62bb54e7cad096fcee4472e2207297033b30b920f656e76ca45b22d59"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "description": "Grant verification cases. Each attempt is evaluated against `grant` at logical time `now`. expect.decision is allow|deny with a reason_code. `call_index` simulates reuse (0 = first use).",
+  "grant": {
+    "kind": "vcp.capability.grant",
+    "grant_id": "grant_test_0001",
+    "subject": "user:123",
+    "audience": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+    "plan_hash": "sha256:88b368435495ec9520ffc38da1c1473bc202398c4726e822a9fb4a5055535475",
+    "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d",
+    "allowed_effect": "write-reversible",
+    "expires_at": "2026-06-13T16:05:00Z",
+    "max_calls": 1,
+    "network": [
+      "https://calendar.example.com"
+    ],
+    "resource_scope": [
+      "calendar.events"
+    ],
+    "proof_of_possession": {
+      "alg": "Ed25519",
+      "jkt": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "now": "2026-06-13T16:00:00Z",
+  "attempts": [
+    {
+      "name": "valid-first-call",
+      "capability": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+      "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d",
+      "call_index": 0,
+      "expect": {
+        "decision": "allow",
+        "reason_code": "OK"
+      }
+    },
+    {
+      "name": "wrong-audience",
+      "capability": "vcp:cap:slack.post_message@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d",
+      "call_index": 0,
+      "expect": {
+        "decision": "deny",
+        "reason_code": "AUDIENCE_MISMATCH"
+      }
+    },
+    {
+      "name": "tampered-arguments",
+      "capability": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+      "argument_hash": "sha256:add219ddd0a381c520ff201aa5237dff79b18ecc7514075cfeca93bc22bef3e3",
+      "call_index": 0,
+      "expect": {
+        "decision": "deny",
+        "reason_code": "ARGUMENT_HASH_MISMATCH"
+      }
+    },
+    {
+      "name": "replayed-second-call",
+      "capability": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+      "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d",
+      "call_index": 1,
+      "expect": {
+        "decision": "deny",
+        "reason_code": "MAX_CALLS_EXCEEDED"
+      }
+    },
+    {
+      "name": "expired",
+      "capability": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
+      "argument_hash": "sha256:02fd9eb2cae0d8cbeb885544d78b4a7d1a5fe067df316309ab6c9b948dd8600d",
+      "call_index": 0,
+      "now": "2026-06-13T16:10:00Z",
+      "expect": {
+        "decision": "deny",
+        "reason_code": "GRANT_EXPIRED"
+      }
+    }
+  ]
+}
