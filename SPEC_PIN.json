@@ -1,8 +1,8 @@
 {
   "spec_repo": "https://github.com/hassard0/vcp",
-  "protocol_revision": "2026-06-12",
+  "protocol_revision": "2026-06-13",
   "vcp_version": "0.1",
-  "note": "Reference implementations in this repo target this revision of the VCP specification. The normative spec and JSON Schemas live in the spec repo above; this repo's conformance/ vectors are derived from those schemas.",
+  "note": "Reference implementations target this revision. Revision 2026-06-13 added §21 tasks, §22 interface capabilities, §23 reason-code registry, §24 lifecycle, §25 caching/tracing, and §26 multi-provider on-behalf-of delegation. These additions are ADDITIVE: the five core conformance vectors (canonical-hash, capability-identity, argument-binding, grant-rules, taint) are unchanged and the current SDK/gateway implementations remain conformant. Reference coverage of the new sections (tasks, interface, multi-provider OBO) is being added incrementally.",
   "ground_truth": {
     "contract_hash": "sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
     "capability_id": "vcp:cap:calendar.create_event@sha256:67062014330fe5bf9ae777e07ed0e228479b0bdde617e4c8518369e46ebd6a18",
