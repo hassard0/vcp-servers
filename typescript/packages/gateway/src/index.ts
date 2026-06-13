@@ -8,3 +8,4 @@ export * from "./invoke.ts";
 export * from "./task.ts";
 export * from "./delegation.ts";
 export * from "./interface.ts";
+export * from "./command.ts";

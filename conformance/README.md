@@ -28,6 +28,7 @@ genuinely fiddly part and is out of scope for v0.1 vectors).
 | `delegation.json` | on-behalf-of chain construction + per-provider credential binding + attenuation | §26 |
 | `task-rules.json` | task lifecycle verdicts: owner/subject, expiry, cancel⇒revoke | §21 |
 | `environment-attestation.json` | optional actor attestation: not-required/valid/missing/nonce/build/expiry | §27 |
+| `command.json` | argv resolution + hash; shell-injection stays literal; path escape ⇒ SANDBOX_VIOLATION; tainted output; exec_digest identity | §28 |
 
 ## What an implementation MUST do
 

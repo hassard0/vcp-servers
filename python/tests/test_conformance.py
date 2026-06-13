@@ -22,9 +22,15 @@ from vcp_gateway import (
     verify_grant,
     verify_grant_audience,
 )
+from vcp_gateway import check_command_paths
 from vcp_sdk import argument_hash, canonical_json, capability_id, contract_hash
 from vcp_sdk import hash as vcp_hash
 from vcp_sdk import reason_codes as rc
+from vcp_sdk.command import (
+    argv_hash,
+    build_command_manifest,
+    resolve_argv,
+)
 
 from . import _vectors
 
@@ -242,6 +248,95 @@ class EnvironmentAttestationVector(unittest.TestCase):
                 self.assertEqual(
                     verdict["reason_code"], case["expect"]["reason_code"]
                 )
+
+
+def _command_manifest(exec_digest):
+    """A minimal command manifest used by the identity_cases replay."""
+    return build_command_manifest(
+        issuer="did:web:example.com",
+        provider="example.cli",
+        name="cat",
+        version="1.0.0",
+        binary="cat",
+        argv_template=[
+            "cat",
+            {"param": "path", "schema": {"type": "string", "vcp_kind": "path"}},
+        ],
+        input_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {"path": {"type": "string"}},
+        },
+        output_schema={"type": "object"},
+        effects={"class": "read-only", "external_side_effect": False},
+        determinism={"class": "external-read"},
+        sandbox={"filesystem": ["/work"], "network": [], "secrets": []},
+        summary_for_user="Read a file in the worktree.",
+        summary_for_model="cat: print a file within /work.",
+        exec_digest=exec_digest,
+    )
+
+
+class CommandVector(unittest.TestCase):
+    """SPEC §28: reproduce conformance/vectors/command.json exactly."""
+
+    def setUp(self):
+        self.data = _vectors.load("command.json")
+
+    def test_resolution_cases(self):
+        for case in self.data["resolution_cases"]:
+            with self.subTest(case=case["name"]):
+                argv = resolve_argv(case["argv_template"], case["params"])
+                self.assertEqual(argv, case["resolved_argv"])
+                self.assertEqual(argv_hash(argv), case["argument_hash"])
+
+    def test_injection_cases(self):
+        for case in self.data["injection_cases"]:
+            with self.subTest(case=case["name"]):
+                argv = resolve_argv(case["argv_template"], case["params"])
+                self.assertEqual(argv, case["resolved_argv"])
+                self.assertEqual(argv_hash(argv), case["argument_hash"])
+                assertions = case["assert"]
+                # The metacharacters are ONE literal argv element — no shell.
+                self.assertEqual(len(argv), assertions["argv_length"])
+                self.assertEqual(argv[-1], assertions["last_element_equals"])
+                self.assertFalse(assertions["shell_used"])
+
+    def test_path_cases(self):
+        for case in self.data["path_cases"]:
+            with self.subTest(case=case["name"]):
+                verdict = check_command_paths(
+                    case["params"],
+                    case["sandbox_filesystem"],
+                    argv_template=case["argv_template"],
+                )
+                self.assertEqual(verdict["decision"], case["expect"]["decision"])
+                self.assertEqual(
+                    verdict["reason_code"], case["expect"]["reason_code"]
+                )
+
+    def test_taint_cases(self):
+        # Command output (untrusted_tool_result) can never authorize (§28.5).
+        for case in self.data["taint_cases"]:
+            with self.subTest(case=case["name"]):
+                dec = authority_decision(case["label"], case["authorizes"])
+                self.assertEqual(dec.decision, case["expect"]["decision"])
+                self.assertEqual(dec.reason_code, case["expect"]["reason_code"])
+
+    def test_identity_cases(self):
+        # A changed exec_digest is a new identity (§4.1, §28.4).
+        for case in self.data["identity_cases"]:
+            with self.subTest(case=case["name"]):
+                man_a = _command_manifest(case["exec_digest_a"])
+                man_b = _command_manifest(case["exec_digest_b"])
+                ha = man_a["capability"]["contract_hash"]
+                hb = man_b["capability"]["contract_hash"]
+                self.assertNotEqual(ha, hb)
+                self.assertNotEqual(
+                    man_a["capability"]["id"], man_b["capability"]["id"]
+                )
+                # The command block IS part of the contract.
+                self.assertEqual(man_a["capability"]["command"]["shell"], False)
 
 
 if __name__ == "__main__":

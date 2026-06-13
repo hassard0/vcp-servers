@@ -273,7 +273,58 @@ write("environment-attestation.json", {
     ],
 })
 
+# ----------------------------------------------------------------------- command
+# Command/CLI capabilities (§28). argv is resolved from a template + typed params and
+# executed WITHOUT a shell, so a value with shell metacharacters is one literal argv
+# element. argument_hash = sha256(JCS(resolved_argv_array)).
+def resolve_argv(template, params):
+    argv = []
+    for tok in template:
+        if isinstance(tok, str):
+            argv.append(tok)
+        else:  # {param, schema}
+            argv.append(params[tok["param"]])
+    return argv
+
+git_commit_tmpl = ["git", "commit", "-m", {"param": "message", "schema": {"type": "string"}}]
+argv_ok = resolve_argv(git_commit_tmpl, {"message": "fix: off-by-one"})
+argv_injection = resolve_argv(git_commit_tmpl, {"message": "; rm -rf / #"})
+cat_tmpl = ["cat", {"param": "path", "schema": {"type": "string", "vcp_kind": "path"}}]
+
+write("command.json", {
+    "description": "Command/CLI capability rules (§28). argv is built from argv_template + params and run via exec (NO shell). Each param is exactly one argv element. argument_hash = sha256(JCS(resolved_argv)). injection_cases prove shell metacharacters stay inside one argv element. path_cases prove a path param outside sandbox.filesystem is refused (SANDBOX_VIOLATION). The command block is part of the contract (§4.1), so a changed exec_digest is a new identity.",
+    "resolution_cases": [
+        {"name": "git-commit", "argv_template": git_commit_tmpl, "params": {"message": "fix: off-by-one"},
+         "resolved_argv": argv_ok, "argument_hash": sha256(argv_ok)},
+    ],
+    "injection_cases": [
+        {"name": "shell-metachars-stay-literal", "argv_template": git_commit_tmpl, "params": {"message": "; rm -rf / #"},
+         "resolved_argv": argv_injection, "argument_hash": sha256(argv_injection),
+         "assert": {"argv_length": 4, "last_element_equals": "; rm -rf / #", "shell_used": False},
+         "expect": {"decision": "allow", "reason_code": "OK", "note": "metacharacters are one literal argv element; no shell, no extra command"}},
+    ],
+    "path_cases": [
+        {"name": "within-worktree", "argv_template": cat_tmpl, "params": {"path": "/work/README.md"}, "sandbox_filesystem": ["/work"],
+         "expect": {"decision": "allow", "reason_code": "OK"}},
+        {"name": "absolute-escape-to-secrets", "argv_template": cat_tmpl, "params": {"path": "/home/user/.ssh/id_rsa"}, "sandbox_filesystem": ["/work"],
+         "expect": {"decision": "deny", "reason_code": "SANDBOX_VIOLATION"}},
+        {"name": "relative-escape", "argv_template": cat_tmpl, "params": {"path": "/work/../etc/passwd"}, "sandbox_filesystem": ["/work"],
+         "expect": {"decision": "deny", "reason_code": "SANDBOX_VIOLATION"}},
+    ],
+    "taint_cases": [
+        {"name": "command-output-cannot-authorize", "label": "untrusted_tool_result", "authorizes": True,
+         "expect": {"decision": "deny", "reason_code": "AUTHORITY_FROM_TAINTED_DATA"}},
+    ],
+    "identity_cases": [
+        {"name": "exec-digest-change-is-new-identity",
+         "note": "Two command capabilities identical but for command.exec_digest MUST have different contract_hash (§4.1, §28.4). The contract is the 8 common fields + the command block.",
+         "exec_digest_a": "sha256:" + "11" * 32, "exec_digest_b": "sha256:" + "22" * 32}
+    ],
+})
+
 print("\nGround-truth values:")
 print("  contract_hash :", ch)
 print("  capability_id :", cap_id)
 print("  argument_hash :", sha256(args_ok))
+print("  command argv_hash (ok)        :", sha256(argv_ok))
+print("  command argv_hash (injection) :", sha256(argv_injection))

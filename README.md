@@ -20,10 +20,10 @@ pinned in [`SPEC_PIN.json`](./SPEC_PIN.json).
 
 | Language | SDK | Gateway + Server | Conformance vectors | Local test status |
 |---|---|---|---|---|
-| **TypeScript** | `typescript/packages/sdk` | `typescript/packages/{gateway,server}` | ✅ all 9 | ✅ 46/46 (`node --test`) |
-| **Python** | `python/vcp_sdk` | `python/{vcp_gateway,vcp_server}` | ✅ all 9 | ✅ 62/62 (`unittest`) |
-| **Rust** | `rust/crates/vcp-sdk` | `rust/crates/vcp-gateway` | ✅ all 9 | ✅ 32/32 (`cargo test`) |
-| **Go** | `go/sdk` | `go/gateway` | ✅ all 9 | ⏳ authored stdlib-only; verified in CI (`go test ./...`) |
+| **TypeScript** | `typescript/packages/sdk` | `typescript/packages/{gateway,server}` | ✅ all 10 | ✅ 57/57 (`node --test`) |
+| **Python** | `python/vcp_sdk` | `python/{vcp_gateway,vcp_server}` | ✅ all 10 | ✅ 81/81 (`unittest`) |
+| **Rust** | `rust/crates/vcp-sdk` | `rust/crates/vcp-gateway` | ✅ all 10 | ✅ 45/45 (`cargo test`) |
+| **Go** | `go/sdk` | `go/gateway` | ✅ all 10 | ⏳ authored stdlib-only; verified in CI (`go test ./...`) |
 
 > The Go reference was written against the spec and vectors but authored on a host
 > without a Go toolchain; it is compiled and tested in CI. See `go/README.md`.
@@ -36,7 +36,9 @@ authority-from-tainted denial, data-flow blocking), `reason-codes` (the §23
 registry), `delegation` (on-behalf-of chain + per-provider credential binding +
 attenuation), `task-rules` (task lifecycle: subject scope, expiry, cancel⇒revoke), and
 `environment-attestation` (optional §27 actor attestation: not-required / valid /
-missing / wrong-nonce / untrusted-build / expired).
+missing / wrong-nonce / untrusted-build / expired), and `command` (§28 CLI/command:
+argv resolution + hash, shell metacharacters stay one literal argv element, path
+escape ⇒ `SANDBOX_VIOLATION`, tainted output, `exec_digest` identity).
 
 ## Run the tests
 

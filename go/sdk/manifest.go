@@ -31,6 +31,12 @@ type Capability struct {
 	Determinism    any    `json:"determinism"`
 	Sandbox        any    `json:"sandbox"`
 	Kind           string `json:"kind,omitempty"`
+	// Command is the identity-bearing command block for kind=command (spec §28).
+	// When present it is appended to the contract before hashing (§4.1, §28.4), so a
+	// changed exec_digest or argv_template yields a different capability_id. Carried
+	// as any (a decoded map) so an arbitrary command block round-trips byte-for-byte
+	// through identity; producers populate it from sdk.Command.asMap().
+	Command any `json:"command,omitempty"`
 }
 
 // Contract returns the identity-bearing contract for this manifest (spec §4):
@@ -49,19 +55,40 @@ func (m Manifest) Contract() Contract {
 	}
 }
 
+// ContractValue returns the map that IS hashed for this manifest's identity. For an
+// ordinary capability that is exactly the eight common contract fields (spec §4.1);
+// for a command capability (Command != nil) the identity-bearing `command` block is
+// appended as a ninth member (spec §4.1, §28.4), so a changed exec_digest or argv
+// template yields a different contract_hash. Because JCS sorts keys, appending a
+// member rather than re-ordering is sufficient and order-independent.
+func (m Manifest) ContractValue() (map[string]any, error) {
+	mp := m.Contract().asMap()
+	if m.Capability.Command != nil {
+		// Round-trip the command block through encoding/json so it canonicalizes with
+		// the same number/typing rules as the rest of the contract.
+		cm, err := decodeToMap(m.Capability.Command)
+		if err != nil {
+			return nil, err
+		}
+		mp["command"] = cm
+	}
+	return mp, nil
+}
+
 // ComputeIdentity fills ContractHash and ID from the contract and returns the
 // computed values. A producer calls this before signing so the manifest is
-// internally consistent (id == vcp:cap:name@contract_hash).
+// internally consistent (id == vcp:cap:name@contract_hash). When the capability
+// carries a command block, identity includes it (spec §4.1, §28.4).
 func (m *Manifest) ComputeIdentity() (contractHash, capabilityID string, err error) {
-	c := m.Contract()
-	contractHash, err = c.ContractHash()
+	cv, err := m.ContractValue()
 	if err != nil {
 		return "", "", err
 	}
-	capabilityID, err = c.CapabilityID()
+	contractHash, err = HashJCS(cv)
 	if err != nil {
 		return "", "", err
 	}
+	capabilityID = fmt.Sprintf("vcp:cap:%s@%s", m.Capability.Name, contractHash)
 	m.Capability.ContractHash = contractHash
 	m.Capability.ID = capabilityID
 	return contractHash, capabilityID, nil

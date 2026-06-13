@@ -22,7 +22,10 @@ export type CapabilityKind =
   | "prompt"
   | "workflow"
   | "state"
-  | "event";
+  | "event"
+  | "task"
+  | "interface"
+  | "command";
 
 export type TaintLabel =
   | "system_instruction"
@@ -98,9 +101,46 @@ export interface InterfaceBlock {
 }
 
 /**
+ * A typed argv hole in a command's argv_template (SPEC §28.1): the value of
+ * `param` (validated by `schema`) occupies EXACTLY one argv element.
+ */
+export interface ArgvHole {
+  param: string;
+  schema: JsonSchema;
+}
+
+/** An argv_template token is a literal string OR a typed hole (SPEC §28.1). */
+export type ArgvToken = string | ArgvHole;
+
+export type ArgvTemplate = ArgvToken[];
+
+/**
+ * The §28 command block. Present for kind=command. It is a content-addressed,
+ * argv-typed CLI invocation that is NEVER executed via a shell. CRITICAL
+ * (§4.1): this whole block is part of the contract — appended to the eight
+ * common fields before hashing — so a changed binary digest or argv template
+ * yields a new capability identity (§28.4).
+ */
+export interface CommandBlock {
+  binary: string;
+  /** Pinned hash of the resolved executable; a changed binary is a new identity (§28.4). */
+  exec_digest?: string;
+  /** MUST be false. VCP never passes commands to a shell (§28.1). */
+  shell: false;
+  argv_template: ArgvTemplate;
+  /** Working directory; MUST be within sandbox.filesystem allowlist. */
+  working_dir?: string;
+  /** host_cli marks a bridged existing CLI (§28.4). */
+  provenance?: "authored" | "host_cli";
+  /** For bridged CLIs: the allowed subcommand/flag patterns, as a signed contract. */
+  subcommand_allow?: string[];
+}
+
+/**
  * The security-relevant subset of a manifest whose hash is the capability
  * identity (SPEC §4). Order of keys here does not matter — canonicalization
- * sorts them — but the field set is normative.
+ * sorts them — but the field set is normative. For a `command` capability the
+ * `command` block is additionally part of the contract (§4.1, §28.4).
  */
 export interface Contract {
   issuer: string;
@@ -111,6 +151,8 @@ export interface Contract {
   effects: Effects;
   determinism: Determinism;
   sandbox: Sandbox;
+  /** Identity-bearing for kind=command only (§4.1, §28). Absent otherwise. */
+  command?: CommandBlock;
 }
 
 export interface Signature {
@@ -133,6 +175,8 @@ export interface Capability {
   kind?: CapabilityKind;
   /** Optional signed, sandboxed UI surface (§22). */
   interface?: InterfaceBlock;
+  /** Present for kind=command (§28); identity-bearing (§4.1). */
+  command?: CommandBlock;
 }
 
 export interface Manifest {

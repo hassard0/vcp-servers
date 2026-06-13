@@ -16,6 +16,7 @@
 
 pub mod attestation;
 pub mod audit;
+pub mod command;
 pub mod delegation;
 pub mod env_attestation;
 pub mod grant;
@@ -28,6 +29,7 @@ pub mod taint;
 pub mod verify;
 
 pub use attestation::{verify_attestation, Attestation, AttestedResult, AttestationError};
+pub use command::{check_command_paths, command_authority, run_argv, ExecResult};
 pub use audit::{
     attested_audit_event, audit_event, upstream_audit_event, AuditEvent, UpstreamAudit,
 };

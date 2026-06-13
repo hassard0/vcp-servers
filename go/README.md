@@ -15,8 +15,8 @@ Module: `github.com/hassard0/vcp-servers/go`. No third-party dependencies — on
 
 | Package | Role | Key files |
 |---|---|---|
-| `sdk` | Lightweight client/SDK + MCP bridge (Planner/Host side, no authority) | `jcs.go`, `hash.go`, `identity.go`, `signing.go`, `manifest.go`, `bridge.go`, `attestation.go` |
-| `gateway` | Heavy enforcing Gateway (the only actor with authority) | `policy.go`, `grant.go`, `taint.go`, `verify.go`, `attestation.go`, `audit.go`, `invoke.go`, `provider.go`, `scenario.go`, `reasoncodes.go`, `task.go`, `delegation.go`, `iface.go`, `envattest.go`, `fanout_scenario.go` |
+| `sdk` | Lightweight client/SDK + MCP bridge (Planner/Host side, no authority) | `jcs.go`, `hash.go`, `identity.go`, `signing.go`, `manifest.go`, `bridge.go`, `command.go`, `attestation.go` |
+| `gateway` | Heavy enforcing Gateway (the only actor with authority) | `policy.go`, `grant.go`, `taint.go`, `verify.go`, `attestation.go`, `audit.go`, `invoke.go`, `provider.go`, `scenario.go`, `reasoncodes.go`, `task.go`, `delegation.go`, `iface.go`, `command.go`, `envattest.go`, `fanout_scenario.go` |
 
 ## What it satisfies
 
@@ -86,6 +86,48 @@ Module: `github.com/hassard0/vcp-servers/go`. No third-party dependencies — on
   `TestNormalCapabilityUnchanged` asserts off-by-default backward compatibility;
   `TestReasonRegistryCount` pins the registry at 26 codes; `sdk` adds
   `TestStatementAttesterRoundTrip`.
+- **§28 Command / CLI capabilities (`VCP-CLI`)** — `sdk/command.go` adds the argv
+  model and command identity; `gateway/command.go` adds the sandbox path check and
+  the real no-shell executor.
+  - **Argv model, no shell ever (§28.1).** `sdk.ResolveArgv(template, params)` turns
+    a typed `argv_template` (`[]sdk.ArgvToken`, each token a literal string or a
+    `{param, schema}` hole) into a concrete argv array where **every parameter value
+    is exactly one element** — never split, re-quoted, globbed, or shell-expanded. A
+    value such as `"; rm -rf / #"` becomes one literal argv element (len 4, last
+    element verbatim). `sdk.ArgvHash(argv)` is the JCS hash over the resolved argv
+    array (= the grant's `argument_hash`, §28.1 rule 3).
+  - **Command capability + identity (§4.1, §28.4).** `sdk.Command` is the manifest
+    `command` block (`binary`, `exec_digest`, `shell:false`, `argv_template`,
+    `working_dir`, `provenance`, `subcommand_allow`). It is **appended to the
+    contract before hashing** (`manifest.ComputeIdentity` / `ContractValue`,
+    `sdk.CommandContractHash`), so a differing `exec_digest` or argv token yields a
+    different `contract_hash` ⇒ a new, unapproved identity.
+  - **Sandbox path check (§28.2).** `gateway.CheckCommandPaths(pathParams,
+    sandboxFilesystem)` denies `SANDBOX_VIOLATION` for any path-typed parameter that
+    resolves (via `filepath.Clean`) outside the `sandbox.filesystem` allowlist —
+    both an absolute escape (`~/.ssh/id_rsa`) and a relative `..` traversal
+    (`/work/../etc/passwd`); the check is purely lexical and boundary-correct
+    (`/work` does not admit `/workspace-secrets`).
+  - **Taint (§28.5).** Command output labeled `untrusted_tool_result` that attempts
+    to authorize is denied `AUTHORITY_FROM_TAINTED_DATA`, reusing the existing taint
+    engine (`gateway.CheckAuthority`).
+  - **Command bridge (§28.4).** `sdk.BridgeExistingCLI(...)` wraps an existing host
+    binary as a constrained `command` capability: provenance `host_cli`, a pinned
+    `exec_digest` (required), the allowlist as a signed contract (`argv_template` +
+    `subcommand_allow`), and §28.1–28.3 applied in full. Returned unsigned for the
+    bridge Gateway to sign, exactly like `BridgeMCPTool`.
+  - **Real no-shell executor (§28.1).** `gateway.BuildCommandExec` /
+    `gateway.RunCommand` run a resolved argv via `exec.Command(binary, argv...)` —
+    **never** `exec.Command("sh","-c",...)`, `cmd /c`, or PowerShell — with an empty
+    (uninherited) environment. The constructed `*exec.Cmd.Args` equals the resolved
+    argv array exactly (one literal element for the metacharacter arg).
+  - **Tests.** `sdk/command_test.go` reproduces `command.json` `resolution_cases`,
+    `injection_cases`, and `identity_cases` plus focused `ResolveArgv`/`ArgvHash`/
+    argv-token unit tests; `gateway/command_vectors_test.go` reproduces `path_cases`
+    and `taint_cases`; `gateway/command_security_test.go` is normative security
+    tests **#20** (shell injection ⇒ one literal argv element, no shell),
+    **#21** (path escape ⇒ `SANDBOX_VIOLATION`), and **#22** (exec_digest rug pull ⇒
+    new identity ⇒ grant `AUDIENCE_MISMATCH`).
 
 ## Build / test
 
@@ -110,13 +152,15 @@ exactly:
 - `task-rules.json` — task lifecycle verdicts (§21)
 - `delegation.json` — OBO chain, credential audience, attenuation (§26)
 - `environment-attestation.json` — environment-attestation verdicts (§27)
+- `command.json` — argv resolution + injection containment, command identity,
+  path-escape (`SANDBOX_VIOLATION`), and tainted-output rules (§28)
 
 ## Note on verification
 
 > This implementation — including the 2026-06-13 additions (§21 tasks, §22
 > interface capabilities, §23 reason-code registry, §26 multi-provider OBO
-> delegation, §27 optional environment attestation) — was authored **without a
-> local Go toolchain available**, so
+> delegation, §27 optional environment attestation, §28 command/CLI capabilities) —
+> was authored **without a local Go toolchain available**, so
 > `go build` / `go vet` / `go test` were **not run by the author**. The code targets
 > Go 1.22 and the standard library only (no module downloads required). CI and
 > maintainers **should** run the three commands above to confirm it compiles, vets
@@ -126,4 +170,8 @@ exactly:
 > `TestReasonCodeRegistry`, `TestReasonRegistryCount`, `TestTaskRulesVector`,
 > `TestDelegationVector`, `TestInterfaceArtifactSwap`, `TestFanoutScenario`,
 > `TestEnvironmentAttestationVector`, `TestSecurityTest19UnattestedProvider`,
-> `TestNormalCapabilityUnchanged`, and `TestStatementAttesterRoundTrip` cases).
+> `TestNormalCapabilityUnchanged`, `TestStatementAttesterRoundTrip`,
+> `TestCommandResolutionVector`, `TestCommandInjectionVector`,
+> `TestCommandIdentityVector`, `TestCommandPathVector`, `TestCommandTaintVector`,
+> `TestSecurityTest20CommandShellInjection`, `TestSecurityTest21CommandPathEscape`,
+> and `TestSecurityTest22CommandRugPull` cases).

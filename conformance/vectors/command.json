@@ -1,0 +1,155 @@
+{
+  "description": "Command/CLI capability rules (§28). argv is built from argv_template + params and run via exec (NO shell). Each param is exactly one argv element. argument_hash = sha256(JCS(resolved_argv)). injection_cases prove shell metacharacters stay inside one argv element. path_cases prove a path param outside sandbox.filesystem is refused (SANDBOX_VIOLATION). The command block is part of the contract (§4.1), so a changed exec_digest is a new identity.",
+  "resolution_cases": [
+    {
+      "name": "git-commit",
+      "argv_template": [
+        "git",
+        "commit",
+        "-m",
+        {
+          "param": "message",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "params": {
+        "message": "fix: off-by-one"
+      },
+      "resolved_argv": [
+        "git",
+        "commit",
+        "-m",
+        "fix: off-by-one"
+      ],
+      "argument_hash": "sha256:25d395c716dc3a7e9e08592f40b2ceb4f20041d565fd49a9b0289b20d070b528"
+    }
+  ],
+  "injection_cases": [
+    {
+      "name": "shell-metachars-stay-literal",
+      "argv_template": [
+        "git",
+        "commit",
+        "-m",
+        {
+          "param": "message",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "params": {
+        "message": "; rm -rf / #"
+      },
+      "resolved_argv": [
+        "git",
+        "commit",
+        "-m",
+        "; rm -rf / #"
+      ],
+      "argument_hash": "sha256:c0c12416d52dc3add63a1ee045d48ead636bc47f509c5b6846bbed252b1df7a1",
+      "assert": {
+        "argv_length": 4,
+        "last_element_equals": "; rm -rf / #",
+        "shell_used": false
+      },
+      "expect": {
+        "decision": "allow",
+        "reason_code": "OK",
+        "note": "metacharacters are one literal argv element; no shell, no extra command"
+      }
+    }
+  ],
+  "path_cases": [
+    {
+      "name": "within-worktree",
+      "argv_template": [
+        "cat",
+        {
+          "param": "path",
+          "schema": {
+            "type": "string",
+            "vcp_kind": "path"
+          }
+        }
+      ],
+      "params": {
+        "path": "/work/README.md"
+      },
+      "sandbox_filesystem": [
+        "/work"
+      ],
+      "expect": {
+        "decision": "allow",
+        "reason_code": "OK"
+      }
+    },
+    {
+      "name": "absolute-escape-to-secrets",
+      "argv_template": [
+        "cat",
+        {
+          "param": "path",
+          "schema": {
+            "type": "string",
+            "vcp_kind": "path"
+          }
+        }
+      ],
+      "params": {
+        "path": "/home/user/.ssh/id_rsa"
+      },
+      "sandbox_filesystem": [
+        "/work"
+      ],
+      "expect": {
+        "decision": "deny",
+        "reason_code": "SANDBOX_VIOLATION"
+      }
+    },
+    {
+      "name": "relative-escape",
+      "argv_template": [
+        "cat",
+        {
+          "param": "path",
+          "schema": {
+            "type": "string",
+            "vcp_kind": "path"
+          }
+        }
+      ],
+      "params": {
+        "path": "/work/../etc/passwd"
+      },
+      "sandbox_filesystem": [
+        "/work"
+      ],
+      "expect": {
+        "decision": "deny",
+        "reason_code": "SANDBOX_VIOLATION"
+      }
+    }
+  ],
+  "taint_cases": [
+    {
+      "name": "command-output-cannot-authorize",
+      "label": "untrusted_tool_result",
+      "authorizes": true,
+      "expect": {
+        "decision": "deny",
+        "reason_code": "AUTHORITY_FROM_TAINTED_DATA"
+      }
+    }
+  ],
+  "identity_cases": [
+    {
+      "name": "exec-digest-change-is-new-identity",
+      "note": "Two command capabilities identical but for command.exec_digest MUST have different contract_hash (§4.1, §28.4). The contract is the 8 common fields + the command block.",
+      "exec_digest_a": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "exec_digest_b": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ]
+}

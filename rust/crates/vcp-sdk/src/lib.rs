@@ -16,6 +16,7 @@
 
 pub mod attestation;
 pub mod bridge;
+pub mod command;
 pub mod identity;
 pub mod jcs;
 pub mod manifest;
@@ -24,6 +25,10 @@ pub mod signer;
 
 pub use attestation::{
     AttestationClaims, Attester, EnvironmentStatement, StatementAttester, StatementSignature,
+};
+pub use command::{
+    argv_hash, bridge_existing_cli, command_contract_hash, command_identity, resolve_argv,
+    ArgvToken, CommandBlock, HostCli, ResolveError,
 };
 pub use identity::{argument_hash, argument_hash_value, capability_id, contract_hash};
 pub use jcs::{canonicalize, canonicalize_value, hash, hash_value};

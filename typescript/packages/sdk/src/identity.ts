@@ -8,7 +8,7 @@ import type { Contract, Manifest } from "./types.ts";
  */
 export function extractContract(manifest: Manifest): Contract {
   const c = manifest.capability;
-  return {
+  const contract: Contract = {
     issuer: manifest.issuer,
     name: c.name,
     version: c.version,
@@ -18,6 +18,13 @@ export function extractContract(manifest: Manifest): Contract {
     determinism: c.determinism,
     sandbox: c.sandbox,
   };
+  // Execution-defining blocks are identity-bearing (§4.1). A command
+  // capability's `command` block is appended to the contract before hashing, so
+  // a changed binary digest or argv template yields a new identity (§28.4).
+  if (c.kind === "command" && c.command !== undefined) {
+    contract.command = c.command;
+  }
+  return contract;
 }
 
 /** contract_hash = sha256(JCS(contract)), prefixed "sha256:". (SPEC §4) */

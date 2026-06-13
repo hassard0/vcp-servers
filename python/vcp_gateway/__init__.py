@@ -12,6 +12,12 @@ from __future__ import annotations
 
 from .attestation import verify_environment_attestation
 from .audit import AuditLog, audit_event
+from .command import (
+    COMMAND_OUTPUT_LABEL,
+    CommandResult,
+    check_command_paths,
+    run_command,
+)
 from .delegation import (
     ExchangedCredential,
     MockTokenExchangeBroker,
@@ -94,6 +100,11 @@ __all__ = [
     "attenuate",
     # environment attestation (§27)
     "verify_environment_attestation",
+    # command / CLI capabilities (§28)
+    "check_command_paths",
+    "run_command",
+    "CommandResult",
+    "COMMAND_OUTPUT_LABEL",
     # interface capability (§22)
     "verify_interface",
     "check_host_action",

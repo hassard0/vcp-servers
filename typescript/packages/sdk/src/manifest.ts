@@ -9,6 +9,7 @@ import type {
   Determinism,
   Sandbox,
   JsonSchema,
+  CommandBlock,
 } from "./types.ts";
 
 export interface BuildManifestInput {
@@ -24,6 +25,11 @@ export interface BuildManifestInput {
   determinism: Determinism;
   sandbox: Sandbox;
   kind?: Capability["kind"];
+  /**
+   * The §28 command block. REQUIRED when kind="command". CRITICAL (§4.1): this
+   * block is folded into the contract before hashing, so it is identity-bearing.
+   */
+  command?: CommandBlock;
   provenance?: Record<string, unknown>;
 }
 
@@ -32,6 +38,7 @@ export interface BuildManifestInput {
  * signature block is omitted; pass the result to signManifest.
  */
 export function buildManifest(input: BuildManifestInput): Omit<Manifest, "signature"> {
+  const isCommand = input.kind === "command";
   const contract: Contract = {
     issuer: input.issuer,
     name: input.name,
@@ -41,6 +48,8 @@ export function buildManifest(input: BuildManifestInput): Omit<Manifest, "signat
     effects: input.effects,
     determinism: input.determinism,
     sandbox: input.sandbox,
+    // Identity-bearing for command capabilities (§4.1, §28.4).
+    ...(isCommand && input.command ? { command: input.command } : {}),
   };
   const ch = contractHash(contract);
   const id = `vcp:cap:${input.name}@${ch}`;
@@ -58,6 +67,7 @@ export function buildManifest(input: BuildManifestInput): Omit<Manifest, "signat
     determinism: input.determinism,
     sandbox: input.sandbox,
     ...(input.kind ? { kind: input.kind } : {}),
+    ...(isCommand && input.command ? { command: input.command } : {}),
   };
 
   const manifest: Omit<Manifest, "signature"> = {

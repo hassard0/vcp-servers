@@ -20,6 +20,17 @@ from .attestation import (
 )
 from .bridge import bridge_mcp_tool, compile_affordance, observation_changed
 from .canonical import canonical_json, constant_time_equals, hash, sha256_hex
+from .command import (
+    COMMAND_CONTRACT_FIELDS,
+    argv_hash,
+    bridge_existing_cli,
+    build_command_manifest,
+    command_capability_id,
+    command_contract,
+    command_contract_hash,
+    is_param_hole,
+    resolve_argv,
+)
 from .identity import (
     CONTRACT_FIELDS,
     argument_hash,
@@ -88,6 +99,16 @@ __all__ = [
     "bridge_mcp_tool",
     "compile_affordance",
     "observation_changed",
+    # command / CLI capabilities (§28)
+    "COMMAND_CONTRACT_FIELDS",
+    "resolve_argv",
+    "argv_hash",
+    "is_param_hole",
+    "command_contract",
+    "command_contract_hash",
+    "command_capability_id",
+    "build_command_manifest",
+    "bridge_existing_cli",
     # environment attestation (§27)
     "ATTESTATION_KIND",
     "ATTESTABLE_ROLES",
